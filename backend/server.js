@@ -5,11 +5,15 @@ import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import roleRoutes from "./routes/role.routes.js";
 import cambioContrasenaRoutes from "./routes/cambio_contrasena.routes.js";
+import vehiculoRoutes from "./routes/vehiculo.routes.js";
+import conductorRoutes from "./routes/conductor.routes.js";
+import trayectoRoutes from "./routes/trayecto.routes.js";
 
 
 
 const app = express();
 app.use(express.json());
+app.use(express.static('uploads')); // Servir archivos estáticos
 
 // RUTA PRINCIPAL PARA QUE NO SALGA "Cannot GET /"
 app.get('/', (req, res) => {
@@ -88,6 +92,9 @@ app.use("/api", userRoutes);
 app.use("/api", authRoutes);
 app.use("/api", roleRoutes);
 app.use("/api", cambioContrasenaRoutes);
+app.use("/api", vehiculoRoutes);
+app.use("/api", conductorRoutes);
+app.use("/api", trayectoRoutes);
 
 // Middleware para capturar rutas no encontradas (404)
 app.use((req, res) => {
@@ -117,10 +124,45 @@ app.use((req, res) => {
                 'PUT /api/usuarios/:id_usuario/rol'
             ],
             cambio_contrasena: [
-                'POST /api/cambiar-contrasena',
-                'GET /api/historial-cambios/:id_usuario',
-                'GET /api/ultimo-cambio/:id_usuario',
-                'GET /api/todos-cambios'
+                'POST /api/cambiar-contrasena'
+            ],
+            vehiculos: [
+                'POST /api/vehiculos',
+                'GET /api/vehiculos',
+                'GET /api/vehiculos/:id_vehiculo',
+                'PUT /api/vehiculos/:id_vehiculo',
+                'PATCH /api/vehiculos/:id_vehiculo/desactivar',
+                'PATCH /api/vehiculos/:id_vehiculo/activar',
+                'PATCH /api/vehiculos/:id_vehiculo/estado'
+            ],
+            documentos: [
+                'POST /api/vehiculos/:id_vehiculo/documentos',
+                'GET /api/vehiculos/:id_vehiculo/documentos',
+                'GET /api/documentos/:id_documento',
+                'GET /api/documentos/:id_documento/descargar',
+                'GET /api/vehiculos/:id_vehiculo/historial'
+            ]
+            ,
+            conductores: [
+                'POST /api/conductores',
+                'GET /api/conductores',
+                'GET /api/conductores/:id_conductor',
+                'PUT /api/conductores/:id_conductor',
+                'PATCH /api/conductores/:id_conductor/desactivar',
+                'PATCH /api/conductores/:id_conductor/activar',
+                'GET /api/conductores/:id_conductor/detalles',
+                'GET /api/conductores/:id_conductor/historial',
+                'POST /api/conductores/:id_conductor/horas',
+                'POST /api/conductores/:id_conductor/alertas-fatiga'
+            ],
+            trayectos: [
+                'POST /api/trayectos',
+                'GET /api/trayectos',
+                'PUT /api/trayectos/:id_trayecto',
+                'POST /api/asignaciones',
+                'GET /api/asignaciones',
+                'GET /api/asignaciones/:id_asignacion',
+                'DELETE /api/asignaciones/:id_asignacion'
             ]
         }
     });
