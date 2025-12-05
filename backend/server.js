@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { db } from './config/db.js';
 import bcrypt from 'bcryptjs';
 import authRoutes from "./routes/auth.routes.js";
@@ -12,6 +13,15 @@ import trayectoRoutes from "./routes/trayecto.routes.js";
 
 
 const app = express();
+
+// Configurar CORS para permitir peticiones desde el frontend
+app.use(cors({
+    origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 app.use(express.static('uploads')); // Servir archivos estáticos
 
