@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { asignaciones, vehiculos, conductores, trayectos, addNotificacion } from '../lib/stores.js';
   import { trayectoService, vehiculoService, conductorService } from '../lib/api/services.js';
+  import { estadoLabel, estadoClass } from '../lib/status.js';
 
   let mostrarFormulario = false;
   let formData = {
@@ -154,8 +155,8 @@
               <td>{asignacion.origen} → {asignacion.destino}</td>
               <td>{asignacion.distancia_km} km</td>
               <td>
-                <span class="badge badge-{asignacion.estado_asignacion}">
-                  {asignacion.estado_asignacion}
+                <span class={`status-pill status-${estadoClass(asignacion.estado_asignacion)}`}>
+                  {estadoLabel(asignacion.estado_asignacion)}
                 </span>
               </td>
               <td>

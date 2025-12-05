@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:wght@400;600&display=swap');
+
 * {
   margin: 0;
   padding: 0;
@@ -20,6 +22,18 @@ body {
   overflow: hidden;
 }
 
+/* Iconos Material Symbols reutilizables */
+.ms-icon {
+  font-family: 'Material Symbols Rounded', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
 #svelte-kit-app {
   width: 100%;
   height: 100%;
@@ -29,6 +43,48 @@ body {
   width: 100%;
   height: 100%;
 }
+
+/* Chips de estado reutilizables */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+.status-pill::before {
+  content: '';
+  display: inline-block;
+  font-family: 'Material Symbols Rounded', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  margin-right: 6px;
+  color: inherit;
+}
+
+/* Iconos diferenciados por estado */
+.status-operativo::before { content: 'check_circle'; }
+.status-en-ruta::before { content: 'trending_flat'; }
+.status-en-mantenimiento::before { content: 'build'; }
+.status-asignado::before { content: 'schedule'; }
+.status-completado::before { content: 'task_alt'; }
+.status-activo::before { content: 'fiber_manual_record'; }
+.status-inactivo::before { content: 'radio_button_unchecked'; }
+.status-desconocido::before { content: 'help'; }
+
+.status-operativo { background: #d4edda; color: #155724; }
+.status-en-ruta { background: #cfe2ff; color: #084298; }
+.status-en-mantenimiento { background: #fff3cd; color: #664d03; }
+.status-asignado { background: #e2e3ff; color: #2f2f8f; }
+.status-completado { background: #d4edda; color: #155724; }
+.status-activo { background: #d4edda; color: #155724; }
+.status-inactivo { background: #f8d7da; color: #721c24; }
+.status-desconocido { background: #e2e3e5; color: #343a40; }
 
 a {
   font-weight: 500;

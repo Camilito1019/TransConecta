@@ -27,21 +27,25 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/asignaciones" | "/conductores" | "/login" | "/roles" | "/trayectos" | "/usuarios" | "/vehiculos";
+		RouteId(): "/" | "/asignaciones" | "/cambiar-contrasena" | "/conductores" | "/login" | "/operaciones" | "/operaciones/horas" | "/perfil" | "/roles" | "/trayectos" | "/usuarios" | "/vehiculos";
 		RouteParams(): {
 			
 		};
 		LayoutParams(): {
 			"/": Record<string, never>;
 			"/asignaciones": Record<string, never>;
+			"/cambiar-contrasena": Record<string, never>;
 			"/conductores": Record<string, never>;
 			"/login": Record<string, never>;
+			"/operaciones": Record<string, never>;
+			"/operaciones/horas": Record<string, never>;
+			"/perfil": Record<string, never>;
 			"/roles": Record<string, never>;
 			"/trayectos": Record<string, never>;
 			"/usuarios": Record<string, never>;
 			"/vehiculos": Record<string, never>
 		};
-		Pathname(): "/" | "/asignaciones" | "/asignaciones/" | "/conductores" | "/conductores/" | "/login" | "/login/" | "/roles" | "/roles/" | "/trayectos" | "/trayectos/" | "/usuarios" | "/usuarios/" | "/vehiculos" | "/vehiculos/";
+		Pathname(): "/" | "/asignaciones" | "/asignaciones/" | "/cambiar-contrasena" | "/cambiar-contrasena/" | "/conductores" | "/conductores/" | "/login" | "/login/" | "/operaciones" | "/operaciones/" | "/operaciones/horas" | "/operaciones/horas/" | "/perfil" | "/perfil/" | "/roles" | "/roles/" | "/trayectos" | "/trayectos/" | "/usuarios" | "/usuarios/" | "/vehiculos" | "/vehiculos/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): string & {};
 	}

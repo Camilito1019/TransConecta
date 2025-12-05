@@ -4,8 +4,15 @@ import { db } from "../config/db.js";
 export const crearConductor = async (req, res) => {
   try {
     const { nombre, cedula, telefono, licencia_conduccion, estado } = req.body;
+
     if (!nombre || !cedula) {
       return res.status(400).json({ error: "Faltan campos requeridos: nombre o cedula" });
+    }
+
+    const estadoFinal = estado || 'activo';
+    const estadosPermitidos = ['activo', 'inactivo'];
+    if (!estadosPermitidos.includes(estadoFinal)) {
+      return res.status(400).json({ error: "estado inválido" });
     }
 
     // Validar cedula única
@@ -19,7 +26,7 @@ export const crearConductor = async (req, res) => {
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id_conductor, nombre, cedula, telefono, licencia_conduccion, estado
     `;
-    const values = [nombre, cedula, telefono || null, licencia_conduccion || null, estado || 'activo'];
+    const values = [nombre, cedula, telefono || null, licencia_conduccion || null, estadoFinal];
     const result = await db.query(query, values);
 
     res.status(201).json({ mensaje: "Conductor creado", conductor: result.rows[0] });
@@ -67,6 +74,13 @@ export const actualizarConductor = async (req, res) => {
     const { id_conductor } = req.params;
     const { nombre, cedula, telefono, licencia_conduccion, estado } = req.body;
     if (!id_conductor || isNaN(id_conductor)) return res.status(400).json({ error: "id_conductor inválido" });
+
+    if (estado) {
+      const estadosPermitidos = ['activo', 'inactivo'];
+      if (!estadosPermitidos.includes(estado)) {
+        return res.status(400).json({ error: "estado inválido" });
+      }
+    }
 
     // Si se cambia la cédula, verificar unicidad
     if (cedula) {
@@ -133,6 +147,34 @@ export const activarConductor = async (req, res) => {
   } catch (error) {
     console.error("Error activando conductor:", error);
     res.status(500).json({ error: "Error al activar conductor" });
+  }
+};
+
+// Eliminar conductor
+export const eliminarConductor = async (req, res) => {
+  try {
+    const { id_conductor } = req.params;
+    if (!id_conductor || isNaN(id_conductor)) return res.status(400).json({ error: "id_conductor inválido" });
+
+    // Validar que no existan referencias activas
+    const refs = await db.query(
+      `SELECT 1 FROM Horas_Conduccion WHERE id_conductor = $1 LIMIT 1`,
+      [id_conductor]
+    );
+    if (refs.rows.length > 0) {
+      return res.status(409).json({ error: "No se puede eliminar: conductor tiene registros de horas." });
+    }
+
+    const result = await db.query(
+      `DELETE FROM Conductor WHERE id_conductor = $1 RETURNING id_conductor, nombre, cedula`,
+      [id_conductor]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: "Conductor no encontrado" });
+    res.json({ mensaje: "Conductor eliminado", conductor: result.rows[0] });
+  } catch (error) {
+    console.error("Error eliminando conductor:", error);
+    res.status(500).json({ error: "Error al eliminar conductor" });
   }
 };
 

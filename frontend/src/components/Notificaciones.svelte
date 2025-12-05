@@ -4,54 +4,97 @@
 
 <div class="notificaciones-container">
   {#each $notificaciones as notificacion (notificacion.id)}
-    <div class="notificacion notificacion-{notificacion.tipo}">
+    <div class={`notificacion notificacion-${notificacion.tipo}`}>
+      <div class="dot"></div>
       <span>{notificacion.mensaje}</span>
     </div>
   {/each}
 </div>
 
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700&display=swap');
+
   .notificaciones-container {
     position: fixed;
-    top: 70px;
-    right: 20px;
-    z-index: 1000;
+    top: 82px;
+    right: 18px;
+    z-index: 1200;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
   }
 
   .notificacion {
-    padding: 12px 20px;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    animation: slideIn 0.3s ease;
-    max-width: 300px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #f4d5d2;
+    background: #fff;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+    animation: slideIn 0.24s ease;
+    min-width: 240px;
+    max-width: 360px;
+    color: #2f2f2f;
+    font-weight: 700;
+  }
+
+  .notificacion .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.06);
   }
 
   .notificacion-info {
-    background-color: #3498db;
-    color: white;
+    border-color: #c8d9ff;
+    background: #f4f7ff;
+    color: #1f3b6f;
+  }
+
+  .notificacion-info .dot {
+    background: #3b82f6;
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.12);
   }
 
   .notificacion-success {
-    background-color: #2ecc71;
-    color: white;
+    border-color: #cce8d8;
+    background: #f2fcf6;
+    color: #1d5a39;
+  }
+
+  .notificacion-success .dot {
+    background: #16a34a;
+    box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.14);
   }
 
   .notificacion-warning {
-    background-color: #f39c12;
-    color: white;
+    border-color: #f8e3c2;
+    background: #fff8ee;
+    color: #7a4a12;
+  }
+
+  .notificacion-warning .dot {
+    background: #f59e0b;
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.16);
   }
 
   .notificacion-error {
-    background-color: #e74c3c;
-    color: white;
+    border-color: #f4d5d2;
+    background: #fff1f1;
+    color: #a33b36;
+  }
+
+  .notificacion-error .dot {
+    background: #e3473c;
+    box-shadow: 0 0 0 6px rgba(227, 71, 60, 0.16);
   }
 
   @keyframes slideIn {
     from {
-      transform: translateX(400px);
+      transform: translateX(120px);
       opacity: 0;
     }
     to {

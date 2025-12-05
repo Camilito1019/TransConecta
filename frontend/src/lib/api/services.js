@@ -13,6 +13,14 @@ export const authService = {
     return { mensaje: 'Sesión cerrada' };
   },
 
+  async me() {
+    return api.get('/me');
+  },
+
+  async actualizarPerfil(datos) {
+    return api.put('/me', datos);
+  },
+
   setToken(token) {
     api.setToken(token);
   },
@@ -30,8 +38,8 @@ export const authService = {
  * Servicio de Usuarios
  */
 export const usuarioService = {
-  async registrar(nombre_usuario, correo, contraseña) {
-    return api.post('/usuarios', { nombre_usuario, correo, contraseña, estado: 'activo' });
+  async registrar(nombre_usuario, correo, contraseña, id_rol) {
+    return api.post('/usuarios', { nombre_usuario, correo, contraseña, id_rol, estado: 'activo' });
   },
 
   async listar() {
@@ -62,8 +70,10 @@ export const usuarioService = {
     return api.put(`/usuarios/${id_usuario}/rol`, { id_rol });
   },
 
-  async cambiarContraseña(contraseña_actual, contraseña_nueva) {
-    return api.post('/cambiar-contrasena', { contraseña_actual, contraseña_nueva });
+  async cambiarContraseña(contrasena_actual, contrasena_nueva, id_usuario) {
+    const payload = { contrasena_actual, contrasena_nueva };
+    if (id_usuario) payload.id_usuario = id_usuario;
+    return api.post('/cambiar-contrasena', payload);
   },
 };
 
@@ -75,16 +85,16 @@ export const rolService = {
     return api.get('/roles');
   },
 
-  async crear(nombre, descripcion) {
-    return api.post('/roles', { nombre, descripcion });
+  async crear(nombre_rol, descripcion) {
+    return api.post('/roles', { nombre_rol, descripcion });
   },
 
   async obtener(id_rol) {
     return api.get(`/roles/${id_rol}`);
   },
 
-  async actualizar(id_rol, nombre, descripcion) {
-    return api.put(`/roles/${id_rol}`, { nombre, descripcion });
+  async actualizar(id_rol, nombre_rol, descripcion) {
+    return api.put(`/roles/${id_rol}`, { nombre_rol, descripcion });
   },
 
   async eliminar(id_rol) {
@@ -118,6 +128,10 @@ export const vehiculoService = {
 
   async activar(id_vehiculo) {
     return api.patch(`/vehiculos/${id_vehiculo}/activar`, {});
+  },
+
+  async eliminar(id_vehiculo) {
+    return api.delete(`/vehiculos/${id_vehiculo}`);
   },
 
   async cambiarEstado(id_vehiculo, estado_operativo) {
@@ -182,6 +196,10 @@ export const conductorService = {
     return api.patch(`/conductores/${id_conductor}/activar`, {});
   },
 
+  async eliminar(id_conductor) {
+    return api.delete(`/conductores/${id_conductor}`);
+  },
+
   async obtenerDetalles(id_conductor) {
     return api.get(`/conductores/${id_conductor}/detalles`);
   },
@@ -215,6 +233,10 @@ export const trayectoService = {
     return api.put(`/trayectos/${id_trayecto}`, datos);
   },
 
+  async eliminar(id_trayecto) {
+    return api.delete(`/trayectos/${id_trayecto}`);
+  },
+
   async asignarTrayecto(datos) {
     return api.post('/asignaciones', datos);
   },
@@ -229,5 +251,9 @@ export const trayectoService = {
 
   async desasignarTrayecto(id_asignacion) {
     return api.delete(`/asignaciones/${id_asignacion}`);
+  },
+
+  async actualizarAsignacion(id_asignacion, datos) {
+    return api.put(`/asignaciones/${id_asignacion}`, datos);
   },
 };

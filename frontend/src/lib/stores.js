@@ -7,6 +7,7 @@ import { authService } from './api/services.js';
 export const auth = writable({
   token: authService.getToken(),
   usuario: null,
+  nombre_rol: null,
   isAuthenticated: authService.isAuthenticated(),
   loading: false,
   error: null,
@@ -20,7 +21,8 @@ export const login = async (correo, contraseña) => {
     auth.update((state) => ({
       ...state,
       token: result.token,
-      usuario: result.usuario,
+      usuario: result.usuario || null,
+      nombre_rol: result.usuario?.nombre_rol || null,
       isAuthenticated: true,
       loading: false,
     }));
@@ -37,11 +39,26 @@ export const login = async (correo, contraseña) => {
 
 export const logout = () => {
   authService.logout();
+
+  // Eliminar la cookie auth_token si existe
+  if (typeof document !== 'undefined') {
+    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+  }
+
   auth.update((state) => ({
     ...state,
     token: null,
     usuario: null,
+    nombre_rol: null,
     isAuthenticated: false,
+  }));
+};
+
+export const setAuthUsuario = (usuario) => {
+  auth.update((state) => ({
+    ...state,
+    usuario: usuario || null,
+    nombre_rol: usuario?.nombre_rol || null,
   }));
 };
 

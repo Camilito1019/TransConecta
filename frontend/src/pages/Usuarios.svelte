@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { usuarios, addNotificacion } from '../lib/stores.js';
   import { usuarioService } from '../lib/api/services.js';
+  import { estadoLabel, estadoClass } from '../lib/status.js';
 
   let mostrarFormulario = false;
   let editando = null;
@@ -160,8 +161,8 @@
               <td>{usuario.nombre_usuario}</td>
               <td>{usuario.correo}</td>
               <td>
-                <span class="badge badge-{usuario.estado}">
-                  {usuario.estado}
+                <span class={`status-pill status-${estadoClass(usuario.estado)}`}>
+                  {estadoLabel(usuario.estado)}
                 </span>
               </td>
               <td>{new Date(usuario.fecha_creacion).toLocaleDateString()}</td>

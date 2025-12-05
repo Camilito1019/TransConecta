@@ -41,37 +41,37 @@
     <p class="loading">Cargando estadísticas...</p>
   {:else}
     <div class="stats-grid">
-      <a href="/usuarios" class="stat-card">
-        <div class="stat-icon">👥</div>
+      <div class="stat-card">
+        <div class="stat-icon"><span class="ms-icon">group</span></div>
         <div class="stat-content">
           <h3>Usuarios</h3>
           <p class="stat-number">{stats.usuarios}</p>
         </div>
-      </a>
+      </div>
 
-      <a href="/vehiculos" class="stat-card">
-        <div class="stat-icon">🚗</div>
+      <div class="stat-card">
+        <div class="stat-icon"><span class="ms-icon">local_shipping</span></div>
         <div class="stat-content">
           <h3>Vehículos</h3>
           <p class="stat-number">{stats.vehiculos}</p>
         </div>
-      </a>
+      </div>
 
-      <a href="/conductores" class="stat-card">
-        <div class="stat-icon">🚦</div>
+      <div class="stat-card">
+        <div class="stat-icon"><span class="ms-icon">badge</span></div>
         <div class="stat-content">
           <h3>Conductores</h3>
           <p class="stat-number">{stats.conductores}</p>
         </div>
-      </a>
+      </div>
 
-      <a href="/trayectos" class="stat-card">
-        <div class="stat-icon">🗺️</div>
+      <div class="stat-card">
+        <div class="stat-icon"><span class="ms-icon">map</span></div>
         <div class="stat-content">
           <h3>Trayectos</h3>
           <p class="stat-number">{stats.trayectos}</p>
         </div>
-      </a>
+      </div>
     </div>
   {/if}
 
@@ -79,32 +79,32 @@
     <h2>Características Principales</h2>
     <div class="features-grid">
       <div class="feature-card">
-        <h4>👤 Gestión de Usuarios</h4>
+        <h4><span class="ms-icon feature-icon-inline">person</span> Gestión de Usuarios</h4>
         <p>Crea, edita y administra usuarios con roles y permisos específicos.</p>
       </div>
 
       <div class="feature-card">
-        <h4>🚗 Gestión de Vehículos</h4>
+        <h4><span class="ms-icon feature-icon-inline">local_shipping</span> Gestión de Vehículos</h4>
         <p>Registra y controla la flota con documentos, historial y estado operativo.</p>
       </div>
 
       <div class="feature-card">
-        <h4>🚦 Gestión de Conductores</h4>
+        <h4><span class="ms-icon feature-icon-inline">badge</span> Gestión de Conductores</h4>
         <p>Monitorea horas de conducción, alertas de fatiga y estado de conductores.</p>
       </div>
 
       <div class="feature-card">
-        <h4>🗺️ Gestión de Trayectos</h4>
+        <h4><span class="ms-icon feature-icon-inline">map</span> Gestión de Trayectos</h4>
         <p>Crea rutas, asigna vehículos y conductores con seguimiento en tiempo real.</p>
       </div>
 
       <div class="feature-card">
-        <h4>📍 Asignaciones</h4>
+        <h4><span class="ms-icon feature-icon-inline">route</span> Asignaciones</h4>
         <p>Coordina la asignación de trayectos a vehículos y conductores.</p>
       </div>
 
       <div class="feature-card">
-        <h4>📊 Reportes</h4>
+        <h4><span class="ms-icon feature-icon-inline">insert_chart_outlined</span> Reportes</h4>
         <p>Visualiza estadísticas y métricas de operación del sistema.</p>
       </div>
     </div>
@@ -143,7 +143,7 @@
     align-items: center;
     gap: 15px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    cursor: pointer;
+    cursor: default;
     text-decoration: none;
     transition: all 0.3s;
   }
@@ -155,6 +155,11 @@
 
   .stat-icon {
     font-size: 32px;
+    color: #c23630;
+  }
+
+  .stat-icon .ms-icon {
+    font-size: 28px;
   }
 
   .stat-content h3 {
@@ -177,6 +182,13 @@
     margin: 0 0 20px 0;
     font-size: 24px;
     color: #2c3e50;
+  }
+
+  .feature-icon-inline {
+    margin-right: 8px;
+    font-size: 20px;
+    color: #c23630;
+    vertical-align: middle;
   }
 
   .features-grid {

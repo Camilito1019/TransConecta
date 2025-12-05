@@ -6,14 +6,27 @@ function isValidEmail(email) {
   return re.test(email);
 }
 
-// Crear vehículo
 export const crearVehiculo = async (req, res) => {
   try {
-    const { placa, marca, modelo, año, tipo_combustible } = req.body;
+    const { placa, marca, modelo, año, capacidad_carga, estado_operativo } = req.body;
 
-    // Validaciones
-    if (!placa || !marca || !modelo || !año || !tipo_combustible) {
-      return res.status(400).json({ error: "Faltan campos requeridos" });
+    if (!placa || !marca || !modelo || !año || capacidad_carga === undefined || capacidad_carga === null) {
+      return res.status(400).json({ error: "Faltan campos requeridos: placa, marca, modelo, año, capacidad_carga" });
+    }
+
+    const yearNum = Number(año);
+    const capNum = Number(capacidad_carga);
+    if (!Number.isInteger(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      return res.status(400).json({ error: "Año inválido" });
+    }
+    if (Number.isNaN(capNum) || capNum <= 0) {
+      return res.status(400).json({ error: "capacidad_carga debe ser numérica y mayor a 0" });
+    }
+
+    const estado = estado_operativo || 'operativo';
+    const estadosPermitidos = ['operativo', 'en_mantenimiento', 'en_ruta', 'inactivo'];
+    if (!estadosPermitidos.includes(estado)) {
+      return res.status(400).json({ error: "estado_operativo inválido" });
     }
 
     // Verificar que placa es única
@@ -23,12 +36,12 @@ export const crearVehiculo = async (req, res) => {
     }
 
     const query = `
-      INSERT INTO Vehiculo (placa, marca, modelo, año, tipo_combustible, estado_operativo, fecha_registro)
+      INSERT INTO Vehiculo (placa, marca, modelo, año, capacidad_carga, estado_operativo, fecha_registro)
       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
-      RETURNING id_vehiculo, placa, marca, modelo, año, tipo_combustible, estado_operativo, fecha_registro
+      RETURNING id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, fecha_registro
     `;
 
-    const values = [placa, marca, modelo, año, tipo_combustible, 'operativo'];
+    const values = [placa, marca, modelo, yearNum, capNum, estado];
     const result = await db.query(query, values);
 
     res.status(201).json({ 
@@ -45,7 +58,7 @@ export const crearVehiculo = async (req, res) => {
 export const listarVehiculos = async (req, res) => {
   try {
     const query = `
-      SELECT id_vehiculo, placa, marca, modelo, año, tipo_combustible, estado_operativo, fecha_registro
+      SELECT id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, fecha_registro
       FROM Vehiculo
       ORDER BY id_vehiculo
     `;
@@ -66,7 +79,7 @@ export const obtenerVehiculo = async (req, res) => {
     }
 
     const query = `
-      SELECT id_vehiculo, placa, marca, modelo, año, tipo_combustible, estado_operativo, fecha_registro
+      SELECT id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, fecha_registro
       FROM Vehiculo
       WHERE id_vehiculo = $1
     `;
@@ -87,10 +100,25 @@ export const obtenerVehiculo = async (req, res) => {
 export const actualizarVehiculo = async (req, res) => {
   try {
     const { id_vehiculo } = req.params;
-    const { placa, marca, modelo, año, tipo_combustible } = req.body;
+    const { placa, marca, modelo, año, capacidad_carga, estado_operativo } = req.body;
 
     if (!id_vehiculo || isNaN(id_vehiculo)) {
       return res.status(400).json({ error: "id_vehiculo inválido" });
+    }
+
+    const yearNum = año !== undefined && año !== null ? Number(año) : null;
+    const capNum = capacidad_carga !== undefined && capacidad_carga !== null ? Number(capacidad_carga) : null;
+    if (yearNum !== null && (!Number.isInteger(yearNum) || yearNum < 1900 || yearNum > 2100)) {
+      return res.status(400).json({ error: "Año inválido" });
+    }
+    if (capNum !== null && (Number.isNaN(capNum) || capNum <= 0)) {
+      return res.status(400).json({ error: "capacidad_carga debe ser numérica y mayor a 0" });
+    }
+    if (estado_operativo) {
+      const estadosPermitidos = ['operativo', 'en_mantenimiento', 'en_ruta', 'inactivo'];
+      if (!estadosPermitidos.includes(estado_operativo)) {
+        return res.status(400).json({ error: "estado_operativo inválido" });
+      }
     }
 
     // Verificar existencia
@@ -116,12 +144,13 @@ export const actualizarVehiculo = async (req, res) => {
           marca = COALESCE($2, marca),
           modelo = COALESCE($3, modelo),
           año = COALESCE($4, año),
-          tipo_combustible = COALESCE($5, tipo_combustible)
-      WHERE id_vehiculo = $6
-      RETURNING id_vehiculo, placa, marca, modelo, año, tipo_combustible, estado_operativo, fecha_registro
+          capacidad_carga = COALESCE($5, capacidad_carga),
+          estado_operativo = COALESCE($6, estado_operativo)
+      WHERE id_vehiculo = $7
+      RETURNING id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, fecha_registro
     `;
 
-    const values = [placa || null, marca || null, modelo || null, año || null, tipo_combustible || null, id_vehiculo];
+    const values = [placa || null, marca || null, modelo || null, yearNum, capNum, estado_operativo || null, id_vehiculo];
     const result = await db.query(query, values);
 
     res.json({ 
@@ -146,7 +175,7 @@ export const desactivarVehiculo = async (req, res) => {
       UPDATE Vehiculo
       SET estado_operativo = 'inactivo'
       WHERE id_vehiculo = $1
-      RETURNING id_vehiculo, placa, marca, estado_operativo
+      RETURNING id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo
     `;
     const result = await db.query(query, [id_vehiculo]);
 
@@ -176,7 +205,7 @@ export const activarVehiculo = async (req, res) => {
       UPDATE Vehiculo
       SET estado_operativo = 'operativo'
       WHERE id_vehiculo = $1
-      RETURNING id_vehiculo, placa, marca, estado_operativo
+      RETURNING id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo
     `;
     const result = await db.query(query, [id_vehiculo]);
 
@@ -194,6 +223,28 @@ export const activarVehiculo = async (req, res) => {
   }
 };
 
+// Eliminar vehículo
+export const eliminarVehiculo = async (req, res) => {
+  try {
+    const { id_vehiculo } = req.params;
+    if (!id_vehiculo || isNaN(id_vehiculo)) {
+      return res.status(400).json({ error: "id_vehiculo inválido" });
+    }
+
+    const query = `DELETE FROM Vehiculo WHERE id_vehiculo = $1 RETURNING id_vehiculo, placa, marca, modelo`;
+    const result = await db.query(query, [id_vehiculo]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Vehículo no encontrado" });
+    }
+
+    res.json({ mensaje: "Vehículo eliminado", vehiculo: result.rows[0] });
+  } catch (error) {
+    console.error("Error eliminando vehículo:", error);
+    res.status(500).json({ error: "Error al eliminar vehículo" });
+  }
+};
+
 // Registrar estado operativo
 export const registrarEstadoOperativo = async (req, res) => {
   try {
@@ -204,15 +255,15 @@ export const registrarEstadoOperativo = async (req, res) => {
       return res.status(400).json({ error: "id_vehiculo inválido" });
     }
 
-    if (!estado_operativo || !['operativo', 'mantenimiento', 'dañado', 'inactivo'].includes(estado_operativo)) {
-      return res.status(400).json({ error: "estado_operativo debe ser: operativo, mantenimiento, dañado o inactivo" });
+    if (!estado_operativo || !['operativo', 'en_mantenimiento', 'en_ruta', 'inactivo'].includes(estado_operativo)) {
+      return res.status(400).json({ error: "estado_operativo debe ser: operativo, en_mantenimiento, en_ruta o inactivo" });
     }
 
     const query = `
       UPDATE Vehiculo
       SET estado_operativo = $1
       WHERE id_vehiculo = $2
-      RETURNING id_vehiculo, placa, marca, estado_operativo, fecha_registro
+      RETURNING id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo
     `;
     const result = await db.query(query, [estado_operativo, id_vehiculo]);
 

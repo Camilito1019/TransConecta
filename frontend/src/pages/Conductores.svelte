@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { conductores, addNotificacion } from '../lib/stores.js';
   import { conductorService } from '../lib/api/services.js';
+  import { estadoLabel, estadoClass } from '../lib/status.js';
 
   let mostrarFormulario = false;
   let editando = null;
@@ -158,8 +159,8 @@
               <td>{conductor.numero_identificacion}</td>
               <td>{conductor.numero_licencia}</td>
               <td>
-                <span class="badge badge-{conductor.estado}">
-                  {conductor.estado}
+                <span class={`status-pill status-${estadoClass(conductor.estado)}`}>
+                  {estadoLabel(conductor.estado)}
                 </span>
               </td>
               <td>

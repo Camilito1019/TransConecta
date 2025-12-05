@@ -5,7 +5,7 @@
 
   let mostrarFormulario = false;
   let editando = null;
-  let formData = { nombre: '', descripcion: '' };
+  let formData = { nombre_rol: '', descripcion: '' };
 
   onMount(async () => {
     await cargarRoles();
@@ -25,10 +25,10 @@
   async function handleGuardar() {
     try {
       if (editando) {
-        await rolService.actualizar(editando.id_rol, formData.nombre, formData.descripcion);
+        await rolService.actualizar(editando.id_rol, formData.nombre_rol, formData.descripcion);
         addNotificacion('Rol actualizado', 'success');
       } else {
-        await rolService.crear(formData.nombre, formData.descripcion);
+        await rolService.crear(formData.nombre_rol, formData.descripcion);
         addNotificacion('Rol creado', 'success');
       }
       resetFormulario();
@@ -40,12 +40,12 @@
 
   function editarRol(rol) {
     editando = rol;
-    formData = { nombre: rol.nombre, descripcion: rol.descripcion };
+    formData = { nombre_rol: rol.nombre_rol, descripcion: rol.descripcion };
     mostrarFormulario = true;
   }
 
   function resetFormulario() {
-    formData = { nombre: '', descripcion: '' };
+    formData = { nombre_rol: '', descripcion: '' };
     editando = null;
     mostrarFormulario = false;
   }
@@ -76,7 +76,7 @@
       <form on:submit|preventDefault={handleGuardar}>
         <div class="form-group">
           <label>Nombre</label>
-          <input type="text" bind:value={formData.nombre} required />
+          <input type="text" bind:value={formData.nombre_rol} required />
         </div>
         <div class="form-group">
           <label>Descripción</label>
@@ -107,7 +107,7 @@
         <tbody>
           {#each $roles.items as rol}
             <tr>
-              <td>{rol.nombre}</td>
+              <td>{rol.nombre_rol}</td>
               <td>{rol.descripcion}</td>
               <td>
                 <button class="btn btn-sm btn-info" on:click={() => editarRol(rol)}>Editar</button>

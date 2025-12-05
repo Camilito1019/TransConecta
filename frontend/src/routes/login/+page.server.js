@@ -32,13 +32,13 @@ export const actions = {
 
       if (!response.ok) {
         const error = await response.json();
-        return { error: error.error || 'Error en el login' };
+        return { success: false, error: error.error || 'Error en el login' };
       }
 
       const result = await response.json();
 
       if (!result.token) {
-        return { error: 'No se recibió token del servidor' };
+        return { success: false, error: 'No se recibió token del servidor' };
       }
 
       // Establecer la cookie de autenticación
@@ -50,8 +50,20 @@ export const actions = {
         secure: false, // Cambiar a true en producción con HTTPS
       });
 
-      // Redirigir a la página principal después del login exitoso
-      throw redirect(303, '/');
+      // Devolver success para que el cliente maneje la navegación y persista token
+      return {
+        success: true,
+        token: result.token,
+        usuario: {
+          id_usuario: result.id_usuario,
+          id_rol: result.id_rol,
+          nombre_usuario: result.nombre_usuario,
+          correo: result.correo,
+          nombre_rol: result.nombre_rol || null,
+          estado: result.estado,
+        },
+        location: '/',
+      };
     } catch (error) {
       if (error.status === 303) {
         throw error; // Re-throw redirect

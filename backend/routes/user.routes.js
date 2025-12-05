@@ -11,7 +11,11 @@ import {
 
 const router = express.Router();
 
+// Alta de usuarios (ruta principal esperada por el frontend)
+router.post("/usuarios", registrarUsuario);
+// Alias legacy, por si algún cliente usa /register
 router.post("/register", registrarUsuario);
+
 router.get("/usuarios", listarUsuarios);
 router.get("/usuarios/:id_usuario", verUsuario);
 router.put("/usuarios/:id_usuario", actualizarUsuario);

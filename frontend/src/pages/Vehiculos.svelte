@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { vehiculos, addNotificacion } from '../lib/stores.js';
   import { vehiculoService } from '../lib/api/services.js';
+  import { estadoLabel, estadoClass } from '../lib/status.js';
 
   let mostrarFormulario = false;
   let editando = null;
@@ -167,8 +168,8 @@
               <td>{vehiculo.año}</td>
               <td>{vehiculo.capacidad_carga} kg</td>
               <td>
-                <span class="badge badge-{vehiculo.estado_operativo}">
-                  {vehiculo.estado_operativo}
+                <span class={`status-pill status-${estadoClass(vehiculo.estado_operativo)}`}>
+                  {estadoLabel(vehiculo.estado_operativo)}
                 </span>
               </td>
               <td>

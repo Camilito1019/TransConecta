@@ -6,6 +6,7 @@ import {
   actualizarVehiculo,
   desactivarVehiculo,
   activarVehiculo,
+  eliminarVehiculo,
   registrarEstadoOperativo,
   subirDocumento,
   listarDocumentos,
@@ -25,6 +26,7 @@ router.put("/vehiculos/:id_vehiculo", actualizarVehiculo);
 router.patch("/vehiculos/:id_vehiculo/desactivar", desactivarVehiculo);
 router.patch("/vehiculos/:id_vehiculo/activar", activarVehiculo);
 router.patch("/vehiculos/:id_vehiculo/estado", registrarEstadoOperativo);
+router.delete("/vehiculos/:id_vehiculo", eliminarVehiculo);
 
 // Rutas de documentos
 router.post("/vehiculos/:id_vehiculo/documentos", upload.single("archivo"), subirDocumento);

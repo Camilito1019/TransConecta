@@ -1,10 +1,12 @@
 <script>
 	import { onMount } from 'svelte';
-	import { usuarios, roles, addNotificacion } from '$lib/stores.js';
+	import { usuarios, addNotificacion } from '$lib/stores.js';
 	import { usuarioService, rolService } from '$lib/api/services.js';
 
 	let mostrarFormulario = false;
 	let editandoId = null;
+	let confirmDelete = { open: false, id: null, nombre: '' };
+	let showPassword = false;
 	let formData = {
 		nombre_usuario: '',
 		correo: '',
@@ -20,15 +22,15 @@
 
 	async function cargarDatos() {
 		try {
-			usuarios.update(u => ({ ...u, loading: true }));
+			usuarios.update((u) => ({ ...u, loading: true }));
 			const [usersRes, rolesRes] = await Promise.all([
 				usuarioService.listar(),
 				rolService.listar()
 			]);
-			usuarios.update(u => ({ ...u, items: usersRes.usuarios || [], loading: false }));
+			usuarios.update((u) => ({ ...u, items: usersRes.usuarios || [], loading: false }));
 			listaRoles = rolesRes.roles || [];
 		} catch (error) {
-			usuarios.update(u => ({ ...u, error: error.message, loading: false }));
+			usuarios.update((u) => ({ ...u, error: error.message, loading: false }));
 			addNotificacion(error.message, 'error');
 		}
 	}
@@ -62,7 +64,7 @@
 				await usuarioService.actualizar(editandoId, {
 					nombre_usuario: formData.nombre_usuario,
 					correo: formData.correo,
-					id_rol: formData.id_rol,
+					id_rol: Number(formData.id_rol),
 					estado: formData.estado
 				});
 				addNotificacion('Usuario actualizado', 'success');
@@ -71,12 +73,12 @@
 					addNotificacion('Ingresa contraseña para nuevo usuario', 'warning');
 					return;
 				}
-				await usuarioService.crear({
-					nombre_usuario: formData.nombre_usuario,
-					correo: formData.correo,
-					contraseña: formData.contraseña,
-					id_rol: formData.id_rol
-				});
+				await usuarioService.registrar(
+					formData.nombre_usuario,
+					formData.correo,
+					formData.contraseña,
+					Number(formData.id_rol)
+				);
 				addNotificacion('Usuario creado', 'success');
 			}
 			mostrarFormulario = false;
@@ -88,7 +90,7 @@
 
 	async function desactivarUsuario(id) {
 		try {
-			await usuarioService.desactivar(id);
+			await usuarioService.inactivar(id);
 			addNotificacion('Usuario desactivado', 'success');
 			await cargarDatos();
 		} catch (error) {
@@ -105,329 +107,343 @@
 			addNotificacion(error.message, 'error');
 		}
 	}
+
+	async function eliminarUsuario(id) {
+		if (!confirmDelete.id) return;
+		try {
+			await usuarioService.eliminar(id);
+			addNotificacion('Usuario eliminado', 'success');
+			confirmDelete = { open: false, id: null, nombre: '' };
+			await cargarDatos();
+		} catch (error) {
+			addNotificacion(error.message, 'error');
+		}
+	}
+
+	$: stats = {
+		total: $usuarios.items.length,
+		activos: $usuarios.items.filter((u) => u.estado === 'activo').length,
+		inactivos: $usuarios.items.filter((u) => u.estado === 'inactivo').length
+	};
 </script>
 
 <svelte:head>
 	<title>Gestión de Usuarios - TransConecta</title>
 </svelte:head>
 
-<div class="container">
-	<div class="header">
-		<div>
-			<h1>👤 Gestión de Usuarios</h1>
-			<p class="subtitle">Crea, edita y administra usuarios con roles y permisos específicos</p>
+<div class="page-shell">
+	<div class="bg-shape shape-a" aria-hidden="true"></div>
+	<div class="bg-shape shape-b" aria-hidden="true"></div>
+
+	<section class="hero">
+		<div class="hero-text">
+			<p class="eyebrow">Equipo</p>
+			<h1>Gestión de Usuarios</h1>
+			<p class="lede">Administra cuentas, roles y estado operativo de tu equipo.</p>
+			<div class="chips">
+				<span class="chip success">{stats.activos} activos</span>
+				<span class="chip muted">{stats.inactivos} inactivos</span>
+			</div>
 		</div>
-		<button class="btn btn-primary" on:click={abrirFormulario}>+ Nuevo Usuario</button>
-	</div>
+		<div class="hero-actions">
+			<button class="primary" on:click={abrirFormulario}>+ Nuevo usuario</button>
+		</div>
+	</section>
 
 	{#if mostrarFormulario}
-		<div class="form-card">
-			<h2>{editandoId ? 'Editar' : 'Crear'} Usuario</h2>
-			<form on:submit|preventDefault={guardarUsuario}>
-				<div class="form-group">
-					<label for="nombre">Nombre de Usuario</label>
-					<input id="nombre" type="text" placeholder="Juan Pérez" bind:value={formData.nombre_usuario} required />
+		<section class="panel">
+			<div class="panel-head">
+				<div>
+					<p class="label">Formulario</p>
+					<h2>{editandoId ? 'Editar usuario' : 'Nuevo usuario'}</h2>
 				</div>
-				<div class="form-group">
-					<label for="correo">Correo Electrónico</label>
-					<input id="correo" type="email" placeholder="juan@ejemplo.com" bind:value={formData.correo} required />
-				</div>
+				<button class="ghost" on:click={() => (mostrarFormulario = false)}>Cerrar</button>
+			</div>
+			<form class="form-grid" on:submit|preventDefault={guardarUsuario}>
+				<label class="field">
+					<span>Nombre de usuario</span>
+					<input type="text" placeholder="Ej. Juan Pérez" bind:value={formData.nombre_usuario} required />
+				</label>
+				<label class="field">
+					<span>Correo</span>
+					<input type="email" placeholder="correo@empresa.com" bind:value={formData.correo} required />
+				</label>
 				{#if !editandoId}
-					<div class="form-group">
-						<label for="password">Contraseña</label>
-						<input id="password" type="password" placeholder="••••••••" bind:value={formData.contraseña} required />
-					</div>
+					<label class="field">
+						<span>Contraseña</span>
+						<div class="password-wrap">
+							<input
+								type={showPassword ? 'text' : 'password'}
+								placeholder="••••••••"
+								bind:value={formData.contraseña}
+								required
+							/>
+							<button type="button" class="eye" on:click={() => (showPassword = !showPassword)} aria-label="Mostrar u ocultar contraseña">
+								<span class="ms-icon">{showPassword ? 'visibility' : 'visibility_off'}</span>
+							</button>
+						</div>
+					</label>
 				{/if}
-				<div class="form-group">
-					<label for="rol">Rol</label>
-					<select id="rol" bind:value={formData.id_rol} required>
-						<option value="">Seleccionar rol</option>
+				<label class="field">
+					<span>Rol</span>
+					<select bind:value={formData.id_rol} required>
+						<option value="">Selecciona un rol</option>
 						{#each listaRoles as role}
-							<option value={role.id_rol}>{role.nombre}</option>
+							<option value={role.id_rol}>{role.nombre_rol}</option>
 						{/each}
 					</select>
-				</div>
+				</label>
 				{#if editandoId}
-					<div class="form-group">
-						<label for="estado">Estado</label>
-						<select id="estado" bind:value={formData.estado}>
+					<label class="field">
+						<span>Estado</span>
+						<select bind:value={formData.estado}>
 							<option value="activo">Activo</option>
 							<option value="inactivo">Inactivo</option>
 						</select>
-					</div>
+					</label>
 				{/if}
 				<div class="form-actions">
-					<button type="submit" class="btn btn-primary">Guardar</button>
-					<button type="button" class="btn btn-secondary" on:click={() => (mostrarFormulario = false)}>Cancelar</button>
+					<button type="submit" class="primary">Guardar</button>
+					<button type="button" class="ghost" on:click={() => (mostrarFormulario = false)}>Cancelar</button>
 				</div>
 			</form>
-		</div>
+		</section>
 	{/if}
 
-	{#if $usuarios.loading}
-		<div class="loading">Cargando usuarios...</div>
-	{:else if $usuarios.items.length === 0}
-		<div class="empty-state">
-			<p>No hay usuarios registrados</p>
+	<section class="panel">
+		<div class="panel-head">
+			<div>
+				<p class="label">Listado</p>
+				<h2>Usuarios</h2>
+			</div>
 		</div>
-	{:else}
-		<div class="table-responsive">
-			<table>
-				<thead>
-					<tr>
-						<th>Nombre</th>
-						<th>Correo</th>
-						<th>Rol</th>
-						<th>Estado</th>
-						<th>Fecha Creación</th>
-						<th>Acciones</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each $usuarios.items as user}
+
+		{#if $usuarios.loading}
+			<div class="loading">
+				<div class="spinner"></div>
+				<p>Cargando usuarios...</p>
+			</div>
+		{:else if $usuarios.items.length === 0}
+			<div class="empty">
+				<p>No hay usuarios registrados.</p>
+			</div>
+		{:else}
+			<div class="table-wrap">
+				<table>
+					<thead>
 						<tr>
-							<td>{user.nombre_usuario}</td>
-							<td>{user.correo}</td>
-							<td><span class="badge">{user.nombre_rol || 'N/A'}</span></td>
-							<td>
-								<span class="status" class:active={user.estado === 'activo'} class:inactive={user.estado === 'inactivo'}>
-									{user.estado}
-								</span>
-							</td>
-							<td>{new Date(user.fecha_creacion).toLocaleDateString()}</td>
-							<td>
-								<button class="btn-action btn-edit" on:click={() => editarUsuario(user)}>✏️</button>
-								{#if user.estado === 'activo'}
-									<button class="btn-action btn-danger" on:click={() => desactivarUsuario(user.id_usuario)}>⊘</button>
-								{:else}
-									<button class="btn-action btn-success" on:click={() => activarUsuario(user.id_usuario)}>✓</button>
-								{/if}
-							</td>
+							<th>Usuario</th>
+							<th>Correo</th>
+							<th>Rol</th>
+							<th>Estado</th>
+							<th>Creación</th>
+							<th></th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-	{/if}
+					</thead>
+					<tbody>
+						{#each $usuarios.items as user}
+							<tr>
+								<td>{user.nombre_usuario}</td>
+								<td>{user.correo}</td>
+								<td><span class="pill">{user.nombre_rol || 'N/A'}</span></td>
+								<td>
+									<span class={`status ${user.estado === 'activo' ? 'green' : 'red'}`}>
+										{user.estado}
+									</span>
+								</td>
+								<td>{new Date(user.fecha_creacion).toLocaleDateString()}</td>
+								<td class="actions">
+									<button class="ghost" on:click={() => editarUsuario(user)}>Editar</button>
+									{#if user.estado === 'activo'}
+										<button class="danger" on:click={() => desactivarUsuario(user.id_usuario)}>Desactivar</button>
+									{:else}
+										<button class="success" on:click={() => activarUsuario(user.id_usuario)}>Activar</button>
+									{/if}
+									<button class="outline" on:click={() => (confirmDelete = { open: true, id: user.id_usuario, nombre: user.nombre_usuario })}>Eliminar</button>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
+	</section>
+
+		{#if confirmDelete.open}
+			<div class="modal-backdrop">
+				<div class="modal">
+					<p class="label">Confirmar</p>
+					<h3>¿Eliminar usuario?</h3>
+					<p class="lede">Se eliminará <strong>{confirmDelete.nombre}</strong>. Esta acción no se puede deshacer.</p>
+					<div class="modal-actions">
+						<button class="ghost" on:click={() => (confirmDelete = { open: false, id: null, nombre: '' })}>Cancelar</button>
+						<button class="danger" on:click={() => eliminarUsuario(confirmDelete.id)}>Eliminar</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 </div>
 
 <style>
-	.container {
-		padding: 20px;
-		width: 100%;
-		box-sizing: border-box;
+	@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap');
+
+	.page-shell {
+		position: relative;
+		padding: 22px 20px 60px 20px;
+		font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+		color: #1f1f1f;
 	}
 
-	.header {
+	.bg-shape {
+		position: absolute;
+		border-radius: 999px;
+		filter: blur(90px);
+		opacity: 0.32;
+		z-index: 0;
+	}
+
+	.shape-a { width: 420px; height: 420px; background: #f6c3c3; top: -140px; left: -120px; }
+	.shape-b { width: 360px; height: 360px; background: #ffd8cf; bottom: -160px; right: -120px; }
+
+	.hero {
+		position: relative;
+		z-index: 1;
 		display: flex;
 		justify-content: space-between;
-		align-items: flex-start;
-		margin-bottom: 30px;
-		gap: 20px;
-	}
-
-	.header h1 {
-		margin: 0;
-		font-size: 28px;
-		color: #1a202c;
-	}
-
-	.subtitle {
-		margin: 8px 0 0 0;
-		color: #718096;
-		font-size: 14px;
-	}
-
-	.btn {
-		padding: 10px 20px;
-		border: none;
-		border-radius: 6px;
-		cursor: pointer;
-		font-weight: 500;
-		transition: all 0.3s;
-	}
-
-	.btn-primary {
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-		color: white;
-	}
-
-	.btn-primary:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
-	}
-
-	.btn-secondary {
-		background: #e2e8f0;
-		color: #2d3748;
-	}
-
-	.btn-secondary:hover {
-		background: #cbd5e0;
-	}
-
-	.form-card {
-		background: white;
-		border-radius: 8px;
-		padding: 24px;
-		margin-bottom: 30px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	}
-
-	.form-card h2 {
-		margin-top: 0;
-		margin-bottom: 20px;
-		color: #1a202c;
-	}
-
-	.form-group {
-		display: flex;
-		flex-direction: column;
+		gap: 16px;
+		align-items: center;
+		background: linear-gradient(125deg, #ffffff 0%, #fff4f2 100%);
+		border: 1px solid #f0d8d3;
+		border-radius: 16px;
+		padding: 18px 20px;
+		box-shadow: 0 12px 36px rgba(0,0,0,0.06);
 		margin-bottom: 16px;
 	}
 
-	.form-group label {
-		margin-bottom: 6px;
-		font-weight: 500;
-		color: #2d3748;
-		font-size: 14px;
+	.hero-text h1 { margin: 6px 0 6px 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+	.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; color: #a33b36; font-weight: 800; margin: 0; }
+	.lede { margin: 0; color: #4f4f4f; font-size: 14px; max-width: 540px; }
+	.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+	.chip { padding: 8px 12px; border-radius: 999px; font-weight: 700; font-size: 13px; border: 1px solid #f4d5d2; background: #fff1f1; color: #a33b36; }
+	.chip.muted { background: #fafafa; border-color: #ededed; color: #3f3f46; }
+	.chip.success { background: #f2fcf6; border-color: #cce8d8; color: #1d5a39; }
+
+	.hero-actions { display: flex; gap: 10px; }
+	.primary {
+		background: linear-gradient(135deg, #e3473c, #c23630);
+		color: #fff;
+		border: 1px solid #f4d5d2;
+		border-radius: 12px;
+		padding: 10px 14px;
+		font-weight: 800;
+		cursor: pointer;
+		box-shadow: 0 12px 26px rgba(227,71,60,0.25);
+		transition: transform 0.12s ease, box-shadow 0.18s ease;
+	}
+	.primary:hover { transform: translateY(-1px); box-shadow: 0 16px 30px rgba(227,71,60,0.3); }
+	.primary:active { transform: translateY(0); box-shadow: 0 10px 22px rgba(227,71,60,0.22); }
+
+	.panel {
+		position: relative;
+		z-index: 1;
+		background: #fff;
+		border-radius: 16px;
+		border: 1px solid #f1f1f1;
+		box-shadow: 0 14px 40px rgba(0,0,0,0.04);
+		padding: 18px 18px 22px 18px;
+		margin-bottom: 16px;
 	}
 
-	.form-group input,
-	.form-group select {
+	.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+	.label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px; color: #9a9a9a; margin: 0; font-weight: 800; }
+	.panel h2 { margin: 4px 0 0 0; font-size: 20px; font-weight: 800; }
+
+	.ghost, .outline, .success, .danger {
+		border-radius: 12px;
 		padding: 10px 12px;
-		border: 1px solid #cbd5e0;
-		border-radius: 4px;
+		font-weight: 700;
+		cursor: pointer;
+		border: 1px solid #f0d0cb;
+		background: #fff;
+		color: #a33b36;
+		transition: transform 0.12s ease, box-shadow 0.18s ease;
+	}
+
+	.ghost:hover, .outline:hover, .success:hover, .danger:hover { transform: translateY(-1px); }
+	.outline { color: #4a4a4a; border-color: #e6e6e6; }
+	.success { color: #1d5a39; border-color: #cce8d8; background: #f2fcf6; }
+	.danger { color: #a33b36; border-color: #f4d5d2; background: #fff1f1; }
+
+	.form-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 14px;
+		margin-top: 14px;
+	}
+
+	.field { display: grid; gap: 6px; font-size: 14px; color: #3f3f46; }
+	.field input, .field select {
+		padding: 12px 12px;
+		border-radius: 12px;
+		border: 1.5px solid #e6e6e9;
+		background: #fbfbfc;
 		font-size: 14px;
+		transition: border-color 0.18s ease, box-shadow 0.18s ease;
 		font-family: inherit;
 	}
-
-	.form-group input:focus,
-	.form-group select:focus {
-		outline: none;
-		border-color: #667eea;
-		box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-	}
-
-	.form-actions {
-		display: flex;
-		gap: 10px;
-		margin-top: 20px;
-	}
-
-	.table-responsive {
-		background: white;
-		border-radius: 8px;
-		overflow-x: auto;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	}
-
-	table {
-		width: 100%;
-		border-collapse: collapse;
-	}
-
-	th {
-		background: #f7fafc;
-		padding: 16px;
-		text-align: left;
-		font-weight: 600;
-		color: #2d3748;
-		border-bottom: 2px solid #e2e8f0;
-		font-size: 13px;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-
-	td {
-		padding: 14px 16px;
-		border-bottom: 1px solid #e2e8f0;
-		color: #4a5568;
-		font-size: 14px;
-	}
-
-	tr:hover {
-		background: #f7fafc;
-	}
-
-	.badge {
-		display: inline-block;
-		padding: 4px 12px;
-		background: #edf2f7;
-		color: #2d3748;
-		border-radius: 12px;
-		font-size: 12px;
-		font-weight: 500;
-	}
-
-	.status {
-		display: inline-block;
-		padding: 4px 12px;
-		border-radius: 12px;
-		font-size: 12px;
-		font-weight: 500;
-	}
-
-	.status.active {
-		background: #c6f6d5;
-		color: #22543d;
-	}
-
-	.status.inactive {
-		background: #fed7d7;
-		color: #742a2a;
-	}
-
-	.btn-action {
-		padding: 6px 10px;
+	.password-wrap { position: relative; display: flex; align-items: center; }
+	.password-wrap input { width: 100%; padding-right: 46px; }
+	.eye {
+		position: absolute;
+		right: 8px;
+		top: 50%;
+		transform: translateY(-50%);
 		border: none;
-		border-radius: 4px;
+		background: transparent;
 		cursor: pointer;
-		font-size: 14px;
-		margin-right: 4px;
-		transition: all 0.2s;
-	}
-
-	.btn-edit {
-		background: #bee3f8;
-		color: #2c5282;
-	}
-
-	.btn-edit:hover {
-		background: #90cdf4;
-	}
-
-	.btn-danger {
-		background: #fed7d7;
-		color: #742a2a;
-	}
-
-	.btn-danger:hover {
-		background: #fc8181;
-	}
-
-	.btn-success {
-		background: #c6f6d5;
-		color: #22543d;
-	}
-
-	.btn-success:hover {
-		background: #9ae6b4;
-	}
-
-	.loading {
-		text-align: center;
-		padding: 40px;
-		color: #718096;
 		font-size: 16px;
+		padding: 6px;
+	}
+	.field input:focus, .field select:focus {
+		outline: none;
+		border-color: #e3473c;
+		box-shadow: 0 10px 30px rgba(227, 71, 60, 0.12);
+		background: #fff;
 	}
 
-	.empty-state {
-		background: white;
-		border-radius: 8px;
-		padding: 60px 20px;
-		text-align: center;
-		color: #718096;
-		font-size: 16px;
+	.form-actions { grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 4px; }
+
+	.table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid #f1f1f1; box-shadow: 0 12px 32px rgba(0,0,0,0.04); }
+	table { width: 100%; border-collapse: collapse; font-size: 14px; }
+	thead { background: #fff8f6; }
+	thead th { text-align: left; padding: 14px; font-weight: 800; color: #2a2a2a; border-bottom: 1px solid #f0d8d3; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+	tbody td { padding: 14px; border-bottom: 1px solid #f5f5f5; color: #3f3f46; }
+	tbody tr:hover { background: #fff4f2; }
+
+	.pill { display: inline-block; padding: 6px 10px; border-radius: 10px; background: #fff1f1; border: 1px solid #f4d5d2; color: #a33b36; font-weight: 700; font-size: 12px; }
+	.status { padding: 6px 10px; border-radius: 10px; font-weight: 800; font-size: 12px; text-transform: capitalize; }
+	.status.green { background: #f2fcf6; color: #1d5a39; border: 1px solid #cce8d8; }
+	.status.red { background: #fff1f1; color: #a33b36; border: 1px solid #f4d5d2; }
+	.actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+	.loading, .empty { display: grid; place-items: center; gap: 10px; padding: 40px; color: #4a4a4a; }
+	.spinner { width: 32px; height: 32px; border-radius: 50%; border: 4px solid #ffe0db; border-top-color: #e3473c; animation: spin 0.8s linear infinite; }
+
+	@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+
+	.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); display: grid; place-items: center; z-index: 20; }
+	.modal { width: min(420px, 92%); background: #fff; border-radius: 16px; border: 1px solid #f0d8d3; box-shadow: 0 24px 60px rgba(0,0,0,0.12); padding: 18px 18px 16px; display: grid; gap: 10px; }
+	.modal h3 { margin: 0; font-size: 20px; font-weight: 800; }
+	.modal .lede { margin: 0; color: #4f4f4f; font-size: 14px; }
+	.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+
+	@media (max-width: 720px) {
+		.hero { flex-direction: column; align-items: flex-start; }
+		.panel { padding: 16px; }
+		thead { display: none; }
+		table, tbody, tr, td { display: block; width: 100%; }
+		tbody tr { margin-bottom: 12px; border: 1px solid #f1f1f1; border-radius: 12px; padding: 10px; }
+		tbody td { border: none; padding: 8px 4px; }
+		tbody td:last-child { padding-top: 8px; }
 	}
 </style>

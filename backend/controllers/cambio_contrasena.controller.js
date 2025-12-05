@@ -1,19 +1,37 @@
 import { db } from "../config/db.js";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = "clave_secreta_super_segura";
+
+function decodeToken(req) {
+  const header = req.headers["authorization"] || "";
+  const bearer = header.startsWith("Bearer ") ? header.replace("Bearer ", "") : null;
+  const cookieToken = req.cookies?.auth_token;
+  const token = bearer || cookieToken;
+  if (!token) return null;
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return null;
+  }
+}
 
 // Cambiar contraseña de usuario
 export const cambiarContrasena = async (req, res) => {
   try {
-    const { id_usuario, contrasena_actual, contrasena_nueva } = req.body;
+    const { contrasena_actual, contrasena_nueva, id_usuario: id_body } = req.body;
+    const decoded = decodeToken(req);
+    const id_usuario = decoded?.id_usuario || id_body; // fallback al body por compatibilidad
 
     // Validaciones
     if (!id_usuario || !contrasena_actual || !contrasena_nueva) {
       return res.status(400).json({ 
-        error: "id_usuario, contrasena_actual y contrasena_nueva son obligatorios" 
+        error: "id_usuario (token o body), contrasena_actual y contrasena_nueva son obligatorios" 
       });
     }
 
-    if (isNaN(id_usuario)) {
+    if (isNaN(Number(id_usuario))) {
       return res.status(400).json({ error: "id_usuario inválido" });
     }
 
@@ -48,20 +66,7 @@ export const cambiarContrasena = async (req, res) => {
     // Hash de la nueva contraseña
     const nuevoHash = await bcrypt.hash(contrasena_nueva, 10);
 
-    // Registrar el cambio en la tabla cambio_contrasena
-    const insertQuery = `
-      INSERT INTO cambio_contrasena (id_usuario, contrasena_anterior, contrasena_nueva, fecha_cambio)
-      VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-      RETURNING *
-    `;
-
-    const insertResult = await db.query(insertQuery, [
-      id_usuario,
-      usuario.contraseña,
-      nuevoHash
-    ]);
-
-    // Actualizar contraseña en tabla Usuario
+    // Actualizar contraseña en tabla Usuario (sin registrar historial)
     const updateQuery = `
       UPDATE Usuario 
       SET "contraseña" = $1
@@ -74,8 +79,7 @@ export const cambiarContrasena = async (req, res) => {
 
     res.json({
       mensaje: "Contraseña actualizada exitosamente",
-      usuario: usuarioActualizado,
-      cambio: insertResult.rows[0]
+      usuario: usuarioActualizado
     });
   } catch (error) {
     console.error("Error cambiando contraseña:", error);

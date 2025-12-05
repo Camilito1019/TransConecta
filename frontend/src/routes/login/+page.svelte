@@ -1,7 +1,8 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { addNotificacion } from '$lib/stores.js';
+	import { addNotificacion, auth, setAuthUsuario } from '$lib/stores.js';
+	import { authService } from '$lib/api/services.js';
 
 	let correo = '';
 	let contraseña = '';
@@ -24,57 +25,78 @@
 	<meta name="description" content="Inicia sesión en TransConecta" />
 </svelte:head>
 
-<div class="login-container">
-	<div class="login-card">
-		<div class="login-header">
+<div class="login-shell">
+	<div class="shape shape-a" aria-hidden="true"></div>
+	<div class="shape shape-b" aria-hidden="true"></div>
+
+	<section class="login-card">
+		<header class="login-header">
+			<p class="eyebrow">Plataforma logística</p>
 			<h1>TransConecta</h1>
-			<p>Gestión de Transporte y Logística</p>
-		</div>
+			<p class="subtitle">Opera tu red de transporte con seguridad y claridad.</p>
+		</header>
 
 		<form
 			method="POST"
 			action="?/login"
 			use:enhance={() => {
 				loading = true;
-				return async ({ result }) => {
+				return async ({ result, update }) => {
 					loading = false;
-					if (result.type === 'redirect') {
-						addNotificacion('¡Bienvenido a TransConecta!', 'success');
-						// Esperar un momento para mostrar la notificación, luego redirigir
-						setTimeout(() => {
-							goto(result.location);
-						}, 500);
-					} else if (result.type === 'failure') {
-						addNotificacion(result.data?.error || 'Error al iniciar sesión', 'error');
+					if (result.type === 'success' && result.data?.success !== false) {
+						const token = result.data?.token ? String(result.data.token) : null;
+						if (token) {
+							localStorage.setItem('auth_token', token);
+							authService.setToken(token);
+							auth.update((state) => ({
+								...state,
+								token,
+								isAuthenticated: true,
+							}));
+							if (result.data?.usuario) {
+								setAuthUsuario(result.data.usuario);
+							}
+							addNotificacion('¡Bienvenido a TransConecta!', 'success');
+							await update();
+							const target = result.data?.location ? String(result.data.location) : '/';
+							await goto(target, { replaceState: true });
+						} else {
+							addNotificacion('No se recibió token del servidor', 'error');
+						}
+					} else {
+						const errorMsg = result.data?.error || 'Error al iniciar sesión';
+						addNotificacion(errorMsg, 'error');
 					}
 				};
 			}}
 		>
-			<div class="form-group">
-				<label for="correo">Correo Electrónico</label>
-				<input
-					type="email"
-					id="correo"
-					name="correo"
-					bind:value={correo}
-					placeholder="correo@example.com"
-					required
-					disabled={loading}
-				/>
-			</div>
+			<div class="form-grid">
+				<label class="form-field">
+					<span>Correo electrónico</span>
+					<input
+						type="email"
+						id="correo"
+						name="correo"
+						bind:value={correo}
+						placeholder="correo@example.com"
+						required
+						disabled={loading}
+					/>
+				</label>
 
-			<div class="form-group">
-				<label for="contraseña">Contraseña</label>
-				<input
-					type="password"
-					id="contraseña"
-					name="contraseña"
-					bind:value={contraseña}
-					placeholder="•••••••••"
-					required
-					disabled={loading}
-					on:keydown={handleKeydown}
-				/>
+				<label class="form-field">
+					<span>Contraseña</span>
+					<input
+						type="password"
+						id="contraseña"
+						name="contraseña"
+						bind:value={contraseña}
+						placeholder="•••••••••"
+						required
+						disabled={loading}
+						on:keydown={handleKeydown}
+					/>
+				</label>
 			</div>
 
 			<button
@@ -82,51 +104,86 @@
 				class="login-btn"
 				disabled={loading || !correo || !contraseña}
 			>
-				{loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+				{loading ? 'Iniciando sesión...' : 'Ingresar'}
 			</button>
+
+			<div class="form-footer">
+				<a href="/cambio-contrasena">¿Olvidaste tu contraseña?</a>
+			</div>
 		</form>
 
 		<div class="login-footer">
-			<p>Credenciales de prueba:</p>
-			<code>correo: admin@example.com</code>
-			<code>contraseña: password123</code>
+			<p>Acceso de prueba</p>
+			<div class="pill">correo: admin@example.com</div>
+			<div class="pill">contraseña: password123</div>
 		</div>
-	</div>
+	</section>
 </div>
 
 <style>
+	@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+
 	:global(html),
 	:global(body) {
 		width: 100%;
 		height: 100%;
 		margin: 0;
 		padding: 0;
+		font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+		background: #f7f7f8;
+		color: #1f1f1f;
 	}
 
-	.login-container {
+	.login-shell {
+		position: relative;
+		min-height: 100vh;
 		display: flex;
-		justify-content: center;
 		align-items: center;
-		width: 100%;
-		flex: 1;
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-		padding: 20px;
+		justify-content: center;
+		padding: 32px 18px;
+		overflow: hidden;
+	}
+
+	.shape {
+		position: absolute;
+		border-radius: 999px;
+		filter: blur(70px);
+		opacity: 0.4;
+	}
+
+	.shape-a {
+		width: 360px;
+		height: 360px;
+		background: #f6c3c3;
+		top: -120px;
+		left: -80px;
+	}
+
+	.shape-b {
+		width: 320px;
+		height: 320px;
+		background: #ffd8cf;
+		bottom: -140px;
+		right: -60px;
 	}
 
 	.login-card {
-		background: white;
-		border-radius: 12px;
-		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-		padding: 60px 40px;
+		position: relative;
+		z-index: 1;
 		width: 100%;
-		max-width: 420px;
-		animation: slideUp 0.5s ease-out;
+		max-width: 460px;
+		background: #ffffff;
+		border-radius: 18px;
+		box-shadow: 0 20px 80px rgba(0, 0, 0, 0.08);
+		padding: 36px 32px;
+		border: 1px solid #f0f0f0;
+		animation: fadeIn 0.5s ease;
 	}
 
-	@keyframes slideUp {
+	@keyframes fadeIn {
 		from {
 			opacity: 0;
-			transform: translateY(20px);
+			transform: translateY(12px);
 		}
 		to {
 			opacity: 1;
@@ -135,151 +192,186 @@
 	}
 
 	.login-header {
+		display: grid;
+		gap: 6px;
 		text-align: center;
-		margin-bottom: 40px;
+		margin-bottom: 28px;
+	}
+
+	.eyebrow {
+		margin: 0 auto;
+		padding: 6px 12px;
+		font-size: 12px;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: #a33b36;
+		background: #fff1f1;
+		border-radius: 999px;
+		width: fit-content;
+		font-weight: 700;
 	}
 
 	.login-header h1 {
-		margin: 0 0 10px 0;
-		color: #667eea;
-		font-size: 36px;
-		font-weight: 700;
-		letter-spacing: -0.5px;
+		margin: 4px 0 0 0;
+		font-size: 32px;
+		font-weight: 800;
+		letter-spacing: -0.02em;
+		color: #2a2a2a;
 	}
 
-	.login-header p {
+	.subtitle {
 		margin: 0;
-		color: #888;
 		font-size: 15px;
-		font-weight: 400;
+		color: #555;
 	}
 
 	form {
 		display: flex;
 		flex-direction: column;
-		gap: 24px;
+		gap: 18px;
 	}
 
-	.form-group {
+	.form-grid {
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
+		gap: 14px;
 	}
 
-	.form-group label {
-		font-weight: 600;
-		color: #333;
+	.form-field {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
 		font-size: 14px;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
+		color: #1f1f1f;
+		font-weight: 600;
 	}
 
-	.form-group input {
-		padding: 14px 16px;
-		border: 2px solid #e0e0e0;
-		border-radius: 8px;
+	.form-field span {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		color: #444;
+		letter-spacing: 0.01em;
+	}
+
+	.form-field input {
+		padding: 14px 14px;
+		border-radius: 12px;
+		border: 1.5px solid #e6e6e9;
+		background: #fbfbfc;
 		font-size: 15px;
-		transition: all 0.3s ease;
-		background: #f8f9fa;
+		transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 		font-family: inherit;
 	}
 
-	.form-group input:focus {
+	.form-field input:focus {
 		outline: none;
-		border-color: #667eea;
-		background: white;
-		box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+		border-color: #e3473c;
+		box-shadow: 0 10px 30px rgba(227, 71, 60, 0.12);
+		background: #ffffff;
 	}
 
-	.form-group input::placeholder {
-		color: #bbb;
+	.form-field input::placeholder {
+		color: #a0a0a5;
 	}
 
-	.form-group input:disabled {
-		background-color: #f5f5f5;
+	.form-field input:disabled {
+		background: #f2f2f4;
 		cursor: not-allowed;
-		opacity: 0.6;
 	}
 
 	.login-btn {
 		padding: 14px 16px;
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-		color: white;
 		border: none;
-		border-radius: 8px;
+		border-radius: 12px;
+		background: linear-gradient(120deg, #e3473c 0%, #c23630 100%);
+		color: #ffffff;
 		font-size: 15px;
-		font-weight: 600;
+		font-weight: 700;
 		cursor: pointer;
-		transition: all 0.3s ease;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-		margin-top: 10px;
+		transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+		box-shadow: 0 14px 30px rgba(227, 71, 60, 0.25);
+		letter-spacing: 0.01em;
 	}
 
 	.login-btn:hover:not(:disabled) {
-		transform: translateY(-3px);
-		box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+		transform: translateY(-1px);
+		box-shadow: 0 16px 36px rgba(227, 71, 60, 0.32);
 	}
 
 	.login-btn:active:not(:disabled) {
-		transform: translateY(-1px);
+		transform: translateY(0);
+		box-shadow: 0 10px 28px rgba(227, 71, 60, 0.22);
 	}
 
 	.login-btn:disabled {
-		opacity: 0.65;
+		opacity: 0.7;
 		cursor: not-allowed;
 	}
 
-	.login-footer {
-		margin-top: 40px;
-		padding-top: 30px;
-		border-top: 2px solid #f0f0f0;
-		text-align: center;
+	.form-footer {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 4px;
+	}
+
+	.form-footer a {
 		font-size: 13px;
-		color: #888;
+		color: #a33b36;
+		text-decoration: none;
+		font-weight: 600;
+	}
+
+	.form-footer a:hover {
+		text-decoration: underline;
+	}
+
+	.login-footer {
+		margin-top: 22px;
+		padding: 16px;
+		background: #fbfbfc;
+		border: 1px dashed #e6e6e9;
+		border-radius: 14px;
+		display: grid;
+		gap: 10px;
+		text-align: center;
 	}
 
 	.login-footer p {
-		margin: 0 0 14px 0;
-		font-weight: 600;
-		color: #666;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
+		margin: 0;
+		font-weight: 700;
+		color: #404040;
+		letter-spacing: 0.01em;
 	}
 
-	.login-footer code {
-		display: block;
+	.pill {
+		display: inline-flex;
+		justify-content: center;
+		align-items: center;
 		padding: 10px 12px;
-		background-color: #f8f9fa;
-		border-radius: 6px;
-		margin: 8px 0;
-		font-size: 12px;
-		color: #333;
-		font-family: 'Monaco', 'Menlo', monospace;
-		border: 1px solid #e0e0e0;
+		border-radius: 12px;
+		background: #fff1f1;
+		color: #a33b36;
+		font-family: 'Manrope', monospace;
+		font-size: 13px;
+		border: 1px solid #f3d4d4;
 	}
 
-	/* Responsive */
-	@media (max-width: 480px) {
+	@media (max-width: 540px) {
 		.login-card {
-			padding: 40px 25px;
+			padding: 28px 22px;
 		}
 
 		.login-header h1 {
 			font-size: 28px;
 		}
 
-		.login-header p {
+		.subtitle {
 			font-size: 14px;
 		}
 
-		form {
-			gap: 18px;
-		}
-
-		.form-group input {
-			padding: 12px 14px;
-			font-size: 16px;
+		.login-footer {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

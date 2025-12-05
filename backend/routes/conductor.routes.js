@@ -6,6 +6,7 @@ import {
   actualizarConductor,
   desactivarConductor,
   activarConductor,
+  eliminarConductor,
   verDetallesConductor,
   obtenerHistorialConductor,
   registrarHorasConduccion,
@@ -21,6 +22,7 @@ router.get("/conductores/:id_conductor", obtenerConductor);
 router.put("/conductores/:id_conductor", actualizarConductor);
 router.patch("/conductores/:id_conductor/desactivar", desactivarConductor);
 router.patch("/conductores/:id_conductor/activar", activarConductor);
+router.delete("/conductores/:id_conductor", eliminarConductor);
 
 // Detalles e historial
 router.get("/conductores/:id_conductor/detalles", verDetallesConductor);
