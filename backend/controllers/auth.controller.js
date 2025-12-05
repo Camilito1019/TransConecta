@@ -51,3 +51,11 @@ export const loginUsuario = async (req, res) => {
     res.status(500).json({ error: "Error en el servidor" });
   }
 };
+
+// Logout: agrega el token a una blacklist en la BD para invalidarlo
+export const logoutUsuario = async (req, res) => {
+  // Opción A: logout del lado del cliente.
+  // El servidor no almacena ni invalida tokens.
+  // Instruye al cliente a eliminar el token (localStorage/cookie).
+  return res.json({ mensaje: 'Logout exitoso. Elimina el token en el cliente.' });
+};

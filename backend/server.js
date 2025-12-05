@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import roleRoutes from "./routes/role.routes.js";
+import cambioContrasenaRoutes from "./routes/cambio_contrasena.routes.js";
 
 
 
@@ -86,6 +87,45 @@ const PORT = process.env.PORT || 3000;
 app.use("/api", userRoutes);
 app.use("/api", authRoutes);
 app.use("/api", roleRoutes);
+app.use("/api", cambioContrasenaRoutes);
+
+// Middleware para capturar rutas no encontradas (404)
+app.use((req, res) => {
+    res.status(404).json({ 
+        error: 'Ruta no encontrada',
+        mensaje: `No existe la ruta ${req.method} ${req.originalUrl}`,
+        rutas_disponibles: {
+            usuarios: [
+                'POST /api/register',
+                'GET /api/usuarios',
+                'GET /api/usuarios/:id_usuario',
+                'PUT /api/usuarios/:id_usuario',
+                'PATCH /api/usuarios/:id_usuario/inactivar',
+                'PATCH /api/usuarios/:id_usuario/activar',
+                'DELETE /api/usuarios/:id_usuario'
+            ],
+            autenticacion: [
+                'POST /api/login',
+                'POST /api/logout'
+            ],
+            roles: [
+                'GET /api/roles',
+                'POST /api/roles',
+                'GET /api/roles/:id_rol',
+                'PUT /api/roles/:id_rol',
+                'DELETE /api/roles/:id_rol',
+                'PUT /api/usuarios/:id_usuario/rol'
+            ],
+            cambio_contrasena: [
+                'POST /api/cambiar-contrasena',
+                'GET /api/historial-cambios/:id_usuario',
+                'GET /api/ultimo-cambio/:id_usuario',
+                'GET /api/todos-cambios'
+            ]
+        }
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor backend escuchando en http://localhost:${PORT}`);
 });
