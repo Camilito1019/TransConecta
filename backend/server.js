@@ -4,6 +4,8 @@ import { db } from './config/db.js';
 import bcrypt from 'bcryptjs';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger.config.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import roleRoutes from "./routes/role.routes.js";
@@ -16,6 +18,8 @@ import trayectoRoutes from "./routes/trayecto.routes.js";
 
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configurar CORS para permitir peticiones desde el frontend
 app.use(cors({
@@ -26,7 +30,8 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use(express.static('uploads')); // Servir archivos estáticos
+// Servir archivos estáticos de uploads con ruta absoluta para evitar fallos por cwd
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Documentación Swagger
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {

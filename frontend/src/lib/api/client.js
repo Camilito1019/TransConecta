@@ -31,8 +31,11 @@ class APIClient {
   }
 
   async request(endpoint, options = {}) {
+    const isFormData = options.body instanceof FormData;
+
+    // Solo forzar Content-Type para payloads JSON. Para FormData dejamos que el navegador asigne el boundary.
     const headers = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     };
 
@@ -45,6 +48,11 @@ class APIClient {
     const url = `${API_URL}${endpoint}`;
     const config = {
       ...options,
+      // Si es FormData, enviamos tal cual; de lo contrario serializamos JSON cuando corresponde.
+      body:
+        !isFormData && options.body && typeof options.body === 'object' && !(options.body instanceof String)
+          ? JSON.stringify(options.body)
+          : options.body,
       headers,
     };
 

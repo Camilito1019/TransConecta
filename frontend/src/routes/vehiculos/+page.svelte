@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { vehiculos, addNotificacion } from '$lib/stores.js';
-	import { vehiculoService } from '$lib/api/services.js';
+	import { vehiculoService, documentoService } from '$lib/api/services.js';
 	import { estadoLabel, estadoClass } from '$lib/status.js';
 	import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado } from '$lib/permisos.js';
 
@@ -14,8 +14,25 @@
 		marca: '',
 		año: '',
 		capacidad_carga: '',
+		tipo_combustible: '',
 		estado_operativo: 'operativo'
 	};
+
+	const documentosIniciales = {
+		soat: null,
+		tecnicomecanica: null,
+		tarjeta_propiedad: null,
+		foto_placa: null,
+		foto_exterior: null,
+		foto_interior: null
+	};
+
+	let documentos = { ...documentosIniciales };
+	let subiendoDocs = false;
+	let documentosExistentes = [];
+	let cargandoDocs = false;
+	const API_HOST = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/api$/, '');
+	let documentosMap = {};
 
 	// Permisos
 	$: puedeCrearVehiculos = puedeCrear();
@@ -46,8 +63,14 @@
 			marca: '',
 			año: '',
 			capacidad_carga: '',
+			tipo_combustible: '',
 			estado_operativo: 'operativo'
 		};
+		documentos = { ...documentosIniciales };
+		subiendoDocs = false;
+		documentosExistentes = [];
+		cargandoDocs = false;
+		documentosMap = {};
 	}
 
 	function abrirFormulario() {
@@ -63,9 +86,121 @@
 			marca: vehiculo.marca,
 			año: vehiculo.año,
 			capacidad_carga: vehiculo.capacidad_carga,
+			tipo_combustible: vehiculo.tipo_combustible || '',
 			estado_operativo: vehiculo.estado_operativo
 		};
 		mostrarFormulario = true;
+		cargarDocumentosVehiculo(vehiculo.id_vehiculo);
+	}
+
+	const etiquetasDocumento = {
+		soat: 'SOAT',
+		tecnicomecanica: 'TECNICOMECANICA',
+		tarjeta_propiedad: 'TARJETA_PROPIEDAD',
+		foto_placa: 'FOTO_PLACA',
+		foto_exterior: 'FOTO_EXTERIOR',
+		foto_interior: 'FOTO_INTERIOR'
+	};
+
+	const keyPorTipo = Object.fromEntries(Object.entries(etiquetasDocumento).map(([k, v]) => [v, k]));
+
+	const docFields = [
+		{ key: 'soat', label: 'SOAT', accept: 'application/pdf' },
+		{ key: 'tecnicomecanica', label: 'Tecnicomecánica', accept: 'application/pdf' },
+		{ key: 'tarjeta_propiedad', label: 'Tarjeta de propiedad', accept: 'application/pdf' },
+		{ key: 'foto_placa', label: 'Foto placa', accept: 'image/png,image/jpeg,image/jpg' },
+		{ key: 'foto_exterior', label: 'Foto exterior', accept: 'image/png,image/jpeg,image/jpg' },
+		{ key: 'foto_interior', label: 'Foto interior', accept: 'image/png,image/jpeg,image/jpg' }
+	];
+
+	const acceptPorKey = Object.fromEntries(docFields.map((d) => [d.key, d.accept.split(',')]));
+
+	function handleFileChange(event, key) {
+		const file = event?.target?.files?.[0] || null;
+		if (file && !archivoPermitido(key, file)) {
+			addNotificacion('Formato no permitido para este documento', 'warning');
+			if (event?.target) event.target.value = '';
+			documentos = { ...documentos, [key]: null };
+			return;
+		}
+		documentos = { ...documentos, [key]: file };
+	}
+
+	function abrirSelector(key) {
+		const el = document?.getElementById(`file-${key}`);
+		if (el) el.click();
+	}
+
+	const nombreArchivo = (file) => file?.name || 'Sin archivo';
+
+	const archivoPermitido = (key, file) => {
+		const accepts = acceptPorKey[key] || [];
+		const mime = (file.type || '').toLowerCase();
+		const ext = (file.name || '').split('.').pop()?.toLowerCase();
+		return accepts.some((acc) => {
+			const accLower = acc.toLowerCase();
+			if (accLower === 'application/pdf') {
+				return mime === 'application/pdf' || ext === 'pdf';
+			}
+			if (accLower.startsWith('image/')) {
+				return mime.startsWith('image/') || ['jpg', 'jpeg', 'png'].includes(ext || '');
+			}
+			if (accLower.startsWith('.')) {
+				return ext === accLower.slice(1);
+			}
+			return mime === accLower;
+		});
+	};
+
+	const docUrl = (archivo_url) => {
+		if (!archivo_url) return '#';
+		return archivo_url.startsWith('http') ? archivo_url : `${API_HOST}${archivo_url}`;
+	};
+
+	async function cargarDocumentosVehiculo(idVehiculo) {
+		cargandoDocs = true;
+		try {
+			const data = await documentoService.listarDocumentos(idVehiculo);
+			documentosExistentes = data.documentos || [];
+			documentosMap = {};
+			documentosExistentes.forEach((doc) => {
+				const key = keyPorTipo[doc.tipo_documento];
+				if (key) documentosMap[key] = doc;
+			});
+		} catch (error) {
+			documentosExistentes = [];
+			documentosMap = {};
+			addNotificacion('No se pudieron cargar los documentos', 'warning');
+		} finally {
+			cargandoDocs = false;
+		}
+	}
+
+	const hayArchivosSeleccionados = () => Object.values(documentos).some(Boolean);
+
+	async function subirDocumentos(idVehiculo) {
+		if (!hayArchivosSeleccionados()) return true;
+		subiendoDocs = true;
+
+		const cargas = Object.entries(documentos)
+			.filter(([, file]) => file)
+			.map(([key, file]) => {
+				const fd = new FormData();
+				fd.append('tipo_documento', etiquetasDocumento[key]);
+				fd.append('archivo', file);
+				return documentoService.subirDocumento(idVehiculo, fd);
+			});
+
+		const resultados = await Promise.allSettled(cargas);
+		subiendoDocs = false;
+
+		const fallas = resultados.filter((r) => r.status === 'rejected');
+		if (fallas.length === 0) {
+			documentos = { ...documentosIniciales };
+			return true;
+		}
+
+		return false;
 	}
 
 	async function guardarVehiculo() {
@@ -74,12 +209,23 @@
 			return;
 		}
 		try {
+			let vehiculoId = editandoId;
+
 			if (editandoId) {
 				await vehiculoService.actualizar(editandoId, formData);
 				addNotificacion('Vehículo actualizado', 'success');
 			} else {
-				await vehiculoService.crear(formData);
+				const respuesta = await vehiculoService.crear(formData);
+				vehiculoId = respuesta?.vehiculo?.id_vehiculo || vehiculoId;
 				addNotificacion('Vehículo creado', 'success');
+			}
+
+			let docsOk = true;
+			if (vehiculoId && hayArchivosSeleccionados()) {
+				docsOk = await subirDocumentos(vehiculoId);
+				addNotificacion(docsOk ? 'Documentos cargados' : 'Algunos documentos no se cargaron. Reintenta.', docsOk ? 'success' : 'warning');
+			} else if (hayArchivosSeleccionados() && !vehiculoId) {
+				addNotificacion('Vehículo guardado pero sin ID para cargar documentos. Reabre y edita para adjuntar.', 'warning');
 			}
 			mostrarFormulario = false;
 			await cargarVehiculos();
@@ -180,6 +326,17 @@
 					<input type="number" min="1" placeholder="1000" bind:value={formData.capacidad_carga} required />
 				</label>
 				<label class="field">
+					<span>Tipo de combustible</span>
+					<select bind:value={formData.tipo_combustible}>
+						<option value="">Selecciona combustible</option>
+						<option value="Diesel">Diésel</option>
+						<option value="Gasolina">Gasolina</option>
+						<option value="Gas">Gas</option>
+						<option value="Electrico">Eléctrico</option>
+						<option value="Hibrido">Híbrido</option>
+					</select>
+				</label>
+				<label class="field">
 					<span>Estado Operativo</span>
 					<select bind:value={formData.estado_operativo}>
 						<option value="operativo">Operativo</option>
@@ -188,6 +345,49 @@
 						<option value="inactivo">Inactivo</option>
 					</select>
 				</label>
+
+				<div class="doc-block">
+					<div class="doc-head">
+						<p class="label">Documentos y evidencias</p>
+						<p class="doc-hint">Opcional. Adjunta SOAT, tecnicomecánica, tarjeta de propiedad y fotos del vehículo.</p>
+					</div>
+					<div class="doc-grid">
+						{#each docFields as doc}
+							<div class="field doc-field">
+								<div class="doc-label">
+									<span>{doc.label}</span>
+									<div class="doc-label-meta">
+										{#if documentosMap[doc.key]}
+											<a class="doc-chip mini" href={docUrl(documentosMap[doc.key].archivo_url)} target="_blank" rel="noreferrer">DESCARGAR</a>
+										{/if}
+									</div>
+								</div>
+								<div class="doc-actions">
+									<button type="button" class="outline" on:click={() => abrirSelector(doc.key)}>
+										{documentosMap[doc.key] ? 'Actualizar documento' : 'Subir documento'}
+									</button>
+									<span class={documentos[doc.key] ? 'doc-pill' : documentosMap[doc.key] ? 'doc-hint-light strong' : 'doc-hint-light'}>
+										{documentos[doc.key]
+											? nombreArchivo(documentos[doc.key])
+											: documentosMap[doc.key]
+											? 'Se reemplazará al actualizar'
+											: 'Sin archivo'}
+									</span>
+									<input
+										id={`file-${doc.key}`}
+										type="file"
+										accept={doc.accept}
+										on:change={(e) => handleFileChange(e, doc.key)}
+										class="file-input"
+									/>
+								</div>
+							</div>
+						{/each}
+					</div>
+					{#if subiendoDocs}
+						<p class="doc-status">Subiendo documentos...</p>
+					{/if}
+				</div>
 				<div class="form-actions">
 					<button type="submit" class="primary">Guardar</button>
 					<button type="button" class="ghost" on:click={() => (mostrarFormulario = false)}>Cancelar</button>
@@ -223,6 +423,7 @@
 							<th>Modelo</th>
 							<th>Año</th>
 							<th>Capacidad</th>
+							<th>Combustible</th>
 							<th>Estado</th>
 							<th></th>
 						</tr>
@@ -235,6 +436,7 @@
 								<td>{v.modelo}</td>
 								<td>{v.año}</td>
 								<td>{v.capacidad_carga} kg</td>
+								<td>{v.tipo_combustible || 'N/D'}</td>
 								<td>
 									<span class={`status-pill status-${estadoClass(v.estado_operativo)}`}>
 										{estadoLabel(v.estado_operativo)}
@@ -349,6 +551,29 @@
 		border-color: #e3473c;
 		box-shadow: 0 10px 30px rgba(227, 71, 60, 0.12);
 		background: #fff;
+	}
+	.doc-block { grid-column: 1 / -1; border: 1.5px dashed #f0d8d3; background: #fff8f6; border-radius: 12px; padding: 12px; display: grid; gap: 10px; }
+	.doc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+	.doc-hint { margin: 0; color: #5d5d5d; font-size: 13px; }
+	.doc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+	.doc-field { background: #fff; border: 1px solid #f1f1f1; border-radius: 12px; padding: 10px; display: grid; gap: 8px; }
+	.doc-label { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; color: #3f3f46; }
+	.doc-label-meta { display: flex; align-items: center; gap: 6px; }
+	.doc-hint-light { color: #9a9a9a; font-weight: 600; font-size: 12px; }
+	.doc-hint-light.strong { color: #a33b36; }
+	.doc-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #f2fcf6; border: 1px solid #cce8d8; color: #1d5a39; font-size: 12px; font-weight: 700; }
+	.doc-status { margin: 0; color: #a33b36; font-weight: 700; font-size: 13px; }
+	.doc-existing { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 2px 8px 2px; }
+	.doc-existing.muted { color: #9a9a9a; font-size: 13px; }
+	.doc-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; border: 1px solid #e6e6e9; background: #fff; color: #333; text-decoration: none; font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,0.04); transition: transform 0.12s ease, box-shadow 0.18s ease; }
+	.doc-chip.mini { padding: 4px 10px; font-size: 12px; background: #e7f1ff; border-color: #c9dcff; color: #1f4b99; }
+	.doc-chip:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,0,0,0.08); }
+	.doc-meta { color: #9a9a9a; font-size: 12px; font-weight: 600; }
+	.loading-docs { color: #a33b36; font-weight: 700; font-size: 13px; }
+	.doc-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+	.file-input { display: none; }
+	@media (max-width: 960px) {
+		.doc-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 	}
 	.form-actions { grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 4px; }
 

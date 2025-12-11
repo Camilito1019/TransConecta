@@ -1,4 +1,6 @@
 import { db } from "../config/db.js";
+import path from "path";
+import fs from "fs/promises";
 
 // Helper: validación simple
 function isValidEmail(email) {
@@ -8,7 +10,7 @@ function isValidEmail(email) {
 
 export const crearVehiculo = async (req, res) => {
   try {
-    const { placa, marca, modelo, año, capacidad_carga, estado_operativo } = req.body;
+    const { placa, marca, modelo, año, capacidad_carga, estado_operativo, tipo_combustible } = req.body;
 
     if (!placa || !marca || !modelo || !año || capacidad_carga === undefined || capacidad_carga === null) {
       return res.status(400).json({ error: "Faltan campos requeridos: placa, marca, modelo, año, capacidad_carga" });
@@ -36,12 +38,12 @@ export const crearVehiculo = async (req, res) => {
     }
 
     const query = `
-      INSERT INTO Vehiculo (placa, marca, modelo, año, capacidad_carga, estado_operativo, fecha_registro)
-      VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
-      RETURNING id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, fecha_registro
+      INSERT INTO Vehiculo (placa, marca, modelo, año, capacidad_carga, estado_operativo, tipo_combustible, fecha_registro)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+      RETURNING id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, tipo_combustible, fecha_registro
     `;
 
-    const values = [placa, marca, modelo, yearNum, capNum, estado];
+    const values = [placa, marca, modelo, yearNum, capNum, estado, tipo_combustible || null];
     const result = await db.query(query, values);
 
     res.status(201).json({ 
@@ -58,7 +60,7 @@ export const crearVehiculo = async (req, res) => {
 export const listarVehiculos = async (req, res) => {
   try {
     const query = `
-      SELECT id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, fecha_registro
+      SELECT id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, tipo_combustible, fecha_registro
       FROM Vehiculo
       ORDER BY id_vehiculo
     `;
@@ -79,7 +81,7 @@ export const obtenerVehiculo = async (req, res) => {
     }
 
     const query = `
-      SELECT id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, fecha_registro
+      SELECT id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, tipo_combustible, fecha_registro
       FROM Vehiculo
       WHERE id_vehiculo = $1
     `;
@@ -100,7 +102,7 @@ export const obtenerVehiculo = async (req, res) => {
 export const actualizarVehiculo = async (req, res) => {
   try {
     const { id_vehiculo } = req.params;
-    const { placa, marca, modelo, año, capacidad_carga, estado_operativo } = req.body;
+    const { placa, marca, modelo, año, capacidad_carga, estado_operativo, tipo_combustible } = req.body;
 
     if (!id_vehiculo || isNaN(id_vehiculo)) {
       return res.status(400).json({ error: "id_vehiculo inválido" });
@@ -145,12 +147,13 @@ export const actualizarVehiculo = async (req, res) => {
           modelo = COALESCE($3, modelo),
           año = COALESCE($4, año),
           capacidad_carga = COALESCE($5, capacidad_carga),
-          estado_operativo = COALESCE($6, estado_operativo)
-      WHERE id_vehiculo = $7
-      RETURNING id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, fecha_registro
+          estado_operativo = COALESCE($6, estado_operativo),
+          tipo_combustible = COALESCE($7, tipo_combustible)
+      WHERE id_vehiculo = $8
+      RETURNING id_vehiculo, placa, marca, modelo, año, capacidad_carga, estado_operativo, tipo_combustible, fecha_registro
     `;
 
-    const values = [placa || null, marca || null, modelo || null, yearNum, capNum, estado_operativo || null, id_vehiculo];
+    const values = [placa || null, marca || null, modelo || null, yearNum, capNum, estado_operativo || null, tipo_combustible || null, id_vehiculo];
     const result = await db.query(query, values);
 
     res.json({ 
@@ -318,14 +321,53 @@ export const subirDocumento = async (req, res) => {
       return res.status(400).json({ error: "tipo_documento es requerido" });
     }
 
-    // Verificar que el vehículo existe
-    const vehiculoCheck = await db.query("SELECT id_vehiculo FROM Vehiculo WHERE id_vehiculo = $1", [id_vehiculo]);
+    // Verificar que el vehículo existe y obtener placa
+    const vehiculoCheck = await db.query("SELECT id_vehiculo, placa FROM Vehiculo WHERE id_vehiculo = $1", [id_vehiculo]);
     if (vehiculoCheck.rows.length === 0) {
       return res.status(404).json({ error: "Vehículo no encontrado" });
     }
 
+    const placa = (vehiculoCheck.rows[0].placa || '').toString();
+    const safePlaca = placa.replace(/[^a-zA-Z0-9_-]/g, '') || `vehiculo-${id_vehiculo}`;
+    const safeTipo = tipo_documento.toString().toUpperCase().replace(/[^A-Z0-9_-]/g, '') || 'DOCUMENTO';
+
+    // Preparar carpeta por placa
+    const uploadBase = path.resolve('uploads/vehiculos');
+    const folderPath = path.join(uploadBase, safePlaca);
+    await fs.mkdir(folderPath, { recursive: true });
+
+    // Buscar y eliminar documentos previos del mismo tipo para este vehículo
+    try {
+      const prevDocs = await db.query(
+        `SELECT id_documento, archivo_url FROM documento_vehiculo WHERE id_vehiculo = $1 AND tipo_documento = $2`,
+        [id_vehiculo, tipo_documento]
+      );
+
+      for (const prev of prevDocs.rows) {
+        const absolutePrevPath = path.join(uploadBase, prev.archivo_url.replace('/uploads/vehiculos/', ''));
+        try {
+          await fs.unlink(absolutePrevPath);
+        } catch (unlinkErr) {
+          console.warn('No se pudo eliminar archivo previo:', unlinkErr?.message || unlinkErr);
+        }
+      }
+
+      if (prevDocs.rows.length > 0) {
+        await db.query(`DELETE FROM documento_vehiculo WHERE id_vehiculo = $1 AND tipo_documento = $2`, [id_vehiculo, tipo_documento]);
+      }
+    } catch (cleanupErr) {
+      console.warn('No se pudieron limpiar documentos previos:', cleanupErr?.message || cleanupErr);
+    }
+
+    // Renombrar archivo: TIPO-PLACA.ext
+    const ext = path.extname(req.file.originalname || req.file.filename || '');
+    const newFilename = `${safeTipo}-${safePlaca}${ext || ''}`;
+    const destPath = path.join(folderPath, newFilename);
+    const tempPath = path.resolve(req.file.path);
+    await fs.rename(tempPath, destPath);
+
     // URL relativa del archivo
-    const archivo_url = `/uploads/vehiculos/${req.file.filename}`;
+    const archivo_url = `/uploads/vehiculos/${safePlaca}/${newFilename}`;
 
     const query = `
       INSERT INTO documento_vehiculo (id_vehiculo, tipo_documento, archivo_url, fecha_carga)
@@ -363,9 +405,31 @@ export const listarDocumentos = async (req, res) => {
     `;
 
     const result = await db.query(query, [id_vehiculo]);
+
+    const uploadBase = path.resolve('uploads/vehiculos');
+    await fs.mkdir(uploadBase, { recursive: true });
+
+    const documentosValidos = [];
+
+    for (const doc of result.rows) {
+      const relPath = doc.archivo_url.replace('/uploads/vehiculos/', '');
+      const absPath = path.join(uploadBase, relPath);
+      try {
+        await fs.access(absPath);
+        documentosValidos.push(doc);
+      } catch (err) {
+        // Si el archivo no existe, eliminar el registro para evitar basura
+        try {
+          await db.query('DELETE FROM documento_vehiculo WHERE id_documento = $1', [doc.id_documento]);
+        } catch (delErr) {
+          console.warn('No se pudo eliminar registro huérfano de documento:', delErr?.message || delErr);
+        }
+      }
+    }
+
     res.json({ 
-      total: result.rows.length, 
-      documentos: result.rows 
+      total: documentosValidos.length, 
+      documentos: documentosValidos 
     });
   } catch (error) {
     console.error("Error listando documentos:", error);
