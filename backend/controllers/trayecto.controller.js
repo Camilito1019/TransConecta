@@ -2,6 +2,8 @@ import { db } from "../config/db.js";
 
 // Asignar trayecto a vehículo y conductor
 export const asignarTrayecto = async (req, res) => {
+  const client = await db.connect();
+
   try {
     const { id_vehiculo, id_conductor, id_trayecto } = req.body;
 
@@ -13,56 +15,83 @@ export const asignarTrayecto = async (req, res) => {
       return res.status(400).json({ error: "id_vehiculo, id_conductor e id_trayecto deben ser numéricos" });
     }
 
+    await client.query("BEGIN");
+
     // Verificar que existen vehiculo, conductor y trayecto
-    const vehiculo = await db.query("SELECT id_vehiculo, estado_operativo FROM Vehiculo WHERE id_vehiculo = $1", [id_vehiculo]);
-    if (vehiculo.rows.length === 0) return res.status(404).json({ error: "Vehículo no encontrado" });
+    const vehiculo = await client.query("SELECT id_vehiculo, estado_operativo FROM Vehiculo WHERE id_vehiculo = $1", [id_vehiculo]);
+    if (vehiculo.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Vehículo no encontrado" });
+    }
     if ((vehiculo.rows[0].estado_operativo || "").toLowerCase() !== "operativo") {
+      await client.query("ROLLBACK");
       return res.status(409).json({ error: "El vehículo no está operativo y no puede ser asignado" });
     }
 
-    const conductor = await db.query("SELECT id_conductor FROM Conductor WHERE id_conductor = $1", [id_conductor]);
-    if (conductor.rows.length === 0) return res.status(404).json({ error: "Conductor no encontrado" });
+    const conductor = await client.query("SELECT id_conductor FROM Conductor WHERE id_conductor = $1", [id_conductor]);
+    if (conductor.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Conductor no encontrado" });
+    }
 
     // Validar fatiga: bloquear si tiene alertas en últimas 24h
-    const alertaFatiga = await db.query(
+    const alertaFatiga = await client.query(
       `SELECT fecha_alerta FROM Alerta_Fatiga 
        WHERE id_conductor = $1 AND fecha_alerta >= (CURRENT_TIMESTAMP - INTERVAL '24 hours')
        ORDER BY fecha_alerta DESC LIMIT 1`,
       [id_conductor]
     );
     if (alertaFatiga.rows.length > 0) {
+      await client.query("ROLLBACK");
       return res.status(409).json({ error: "El conductor tiene alerta de fatiga reciente y no puede ser asignado" });
     }
 
+    // Validar que el conductor no tenga un trayecto activo en Conductor_Trayecto
+    const conductorOcupado = await client.query(
+      `SELECT 1 FROM Conductor_Trayecto WHERE id_conductor = $1 LIMIT 1`,
+      [id_conductor]
+    );
+    if (conductorOcupado.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "El conductor ya tiene un trayecto asignado" });
+    }
+
     // Validar que el vehículo no tenga asignación activa
-    const vehiculoOcupado = await db.query(
+    const vehiculoOcupado = await client.query(
       `SELECT 1 FROM Vehiculo_Conductor_Trayecto WHERE id_vehiculo = $1 LIMIT 1`,
       [id_vehiculo]
     );
     if (vehiculoOcupado.rows.length > 0) {
+      await client.query("ROLLBACK");
       return res.status(409).json({ error: "El vehículo ya tiene un trayecto asignado" });
     }
 
-    const trayecto = await db.query("SELECT id_trayecto FROM Trayecto WHERE id_trayecto = $1", [id_trayecto]);
-    if (trayecto.rows.length === 0) return res.status(404).json({ error: "Trayecto no encontrado" });
+    const trayecto = await client.query("SELECT id_trayecto FROM Trayecto WHERE id_trayecto = $1", [id_trayecto]);
+    if (trayecto.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Trayecto no encontrado" });
+    }
 
     // Insertar en Conductor_Trayecto
-    const conductorTrayectoRes = await db.query(
-      `INSERT INTO Conductor_Trayecto (id_conductor, id_trayecto, fecha_asignacion) VALUES ($1, $2, CURRENT_TIMESTAMP) RETURNING id_conductor_trayecto, id_conductor, id_trayecto, fecha_asignacion`,
+    const conductorTrayectoRes = await client.query(
+      `INSERT INTO Conductor_Trayecto (id_conductor, id_trayecto, fecha_asignacion)
+       VALUES ($1, $2, CURRENT_TIMESTAMP)
+       RETURNING id_conductor_trayecto, id_conductor, id_trayecto, fecha_asignacion`,
       [id_conductor, id_trayecto]
     );
 
     // Insertar en Vehiculo_Conductor_Trayecto
-    const vehiculoTrayectoRes = await db.query(
-      `INSERT INTO Vehiculo_Conductor_Trayecto (id_vehiculo, id_conductor, id_trayecto, fecha_asignacion) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) RETURNING id_asignacion, id_vehiculo, id_conductor, id_trayecto, fecha_asignacion`,
+    const vehiculoTrayectoRes = await client.query(
+      `INSERT INTO Vehiculo_Conductor_Trayecto (id_vehiculo, id_conductor, id_trayecto, fecha_asignacion)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+       RETURNING id_asignacion, id_vehiculo, id_conductor, id_trayecto, fecha_asignacion`,
       [id_vehiculo, id_conductor, id_trayecto]
     );
 
     // Actualizar estado del conductor a "en_ruta"
     try {
-      await db.query("UPDATE Conductor SET estado = 'en_ruta' WHERE id_conductor = $1", [id_conductor]);
-      // Registrar en historial conductor
-      await db.query(
+      await client.query("UPDATE Conductor SET estado = 'en_ruta' WHERE id_conductor = $1", [id_conductor]);
+      await client.query(
         `INSERT INTO Historial_Conductor (id_conductor, evento, fecha_evento) VALUES ($1, $2, CURRENT_TIMESTAMP)`,
         [id_conductor, `Asignado a trayecto ${id_trayecto} en vehículo ${id_vehiculo}`]
       );
@@ -72,9 +101,8 @@ export const asignarTrayecto = async (req, res) => {
 
     // Actualizar estado del vehículo a "en_ruta"
     try {
-      await db.query("UPDATE Vehiculo SET estado_operativo = 'en_ruta' WHERE id_vehiculo = $1", [id_vehiculo]);
-      // Registrar en historial vehículo
-      await db.query(
+      await client.query("UPDATE Vehiculo SET estado_operativo = 'en_ruta' WHERE id_vehiculo = $1", [id_vehiculo]);
+      await client.query(
         `INSERT INTO Historial_Vehiculo (id_vehiculo, descripcion_evento, fecha_evento) VALUES ($1, $2, CURRENT_TIMESTAMP)`,
         [id_vehiculo, `Asignado a trayecto ${id_trayecto} con conductor ${id_conductor}`]
       );
@@ -82,14 +110,19 @@ export const asignarTrayecto = async (req, res) => {
       console.error("Error actualizando historial vehículo:", histErr);
     }
 
+    await client.query("COMMIT");
+
     res.status(201).json({
       mensaje: "Trayecto asignado exitosamente",
       asignacion: vehiculoTrayectoRes.rows[0],
       conductor_trayecto: conductorTrayectoRes.rows[0]
     });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error asignando trayecto:", error);
     res.status(500).json({ error: "Error al asignar trayecto" });
+  } finally {
+    client.release();
   }
 };
 
@@ -148,6 +181,19 @@ export const actualizarAsignacion = async (req, res) => {
     if (alertaFatiga.rows.length > 0) {
       await client.query("ROLLBACK");
       return res.status(409).json({ error: "El conductor tiene alerta de fatiga reciente y no puede ser asignado" });
+    }
+
+    // Validar que el conductor no tenga otro trayecto activo en Conductor_Trayecto
+    const conductorOcupado = await client.query(
+      `SELECT 1 FROM Conductor_Trayecto
+       WHERE id_conductor = $1
+         AND NOT (id_conductor = $2 AND id_trayecto = $3)
+       LIMIT 1`,
+      [id_conductor, actual.id_conductor, actual.id_trayecto]
+    );
+    if (conductorOcupado.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "El conductor ya tiene un trayecto asignado" });
     }
 
     // Validar que el nuevo vehículo no tenga asignación activa
