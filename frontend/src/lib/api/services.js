@@ -222,6 +222,27 @@ export const conductorService = {
 };
 
 /**
+ * Servicio de Configuración de Módulos
+ */
+export const moduloService = {
+  async listar() {
+    return api.get('/modulos/permisos');
+  },
+
+  async obtenerPorRol(rol) {
+    return api.get(`/modulos/permisos/rol/${rol}`);
+  },
+
+  async actualizarRol(rol, permisos) {
+    return api.put(`/modulos/permisos/${rol}`, { permisos });
+  },
+
+  async reset() {
+    return api.post('/modulos/permisos/reset', {});
+  }
+};
+
+/**
  * Servicio de Clientes
  */
 export const clienteService = {

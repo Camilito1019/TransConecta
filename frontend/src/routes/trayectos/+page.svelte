@@ -1,20 +1,36 @@
 <script>
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { trayectos, addNotificacion } from '$lib/stores.js';
 	import { trayectoService } from '$lib/api/services.js';
-	import { puedeCrear, puedeEditar, puedeEliminar } from '$lib/permisos.js';
+	import { puedeCrear, puedeEditar, puedeEliminar, puedeVerModulo } from '$lib/permisos.js';
+	import { modulosConfig } from '$lib/modulos.js';
 
 	let mostrarFormulario = false;
 	let editandoId = null;
 	let confirmAction = { open: false, id: null, label: '' };
 	let formData = { origen: '', destino: '', distancia_km: '', tiempo_estimado: '' };
 
-	// Permisos
-	$: puedeCrearTrayectos = puedeCrear();
-	$: puedeEditarTrayectos = puedeEditar();
-	$: puedeEliminarTrayectos = puedeEliminar();
+	const MODULO = 'trayectos';
+
+	let puedeCrearTrayectos = false;
+	let puedeEditarTrayectos = false;
+	let puedeEliminarTrayectos = false;
+
+	$: permisosModulo = $modulosConfig;
+	$: {
+		permisosModulo;
+		puedeCrearTrayectos = puedeCrear(MODULO);
+		puedeEditarTrayectos = puedeEditar(MODULO);
+		puedeEliminarTrayectos = puedeEliminar(MODULO);
+	}
 
 	onMount(async () => {
+		if (!puedeVerModulo(MODULO)) {
+			addNotificacion('No tienes acceso al módulo Trayectos', 'error');
+			goto('/');
+			return;
+		}
 		await cargarTrayectos();
 	});
 

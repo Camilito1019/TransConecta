@@ -1,8 +1,10 @@
 <script>
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { conductores, addNotificacion } from '$lib/stores.js';
 	import { conductorService } from '$lib/api/services.js';
-	import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado } from '$lib/permisos.js';
+	import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado, puedeVerModulo } from '$lib/permisos.js';
+	import { modulosConfig } from '$lib/modulos.js';
 	import { estadoLabel, estadoClass } from '$lib/status.js';
 
 	let mostrarFormulario = false;
@@ -17,11 +19,21 @@
 		estado: 'activo'
 	};
 
-	// Permisos
-	$: puedeCrearConductores = puedeCrear();
-	$: puedeEditarConductores = puedeEditar();
-	$: puedeEliminarConductores = puedeEliminar();
-	$: puedeCambiarEstadoConductores = puedeCambiarEstado();
+	const MODULO = 'conductores';
+
+	let puedeCrearConductores = false;
+	let puedeEditarConductores = false;
+	let puedeEliminarConductores = false;
+	let puedeCambiarEstadoConductores = false;
+
+	$: permisosModulo = $modulosConfig;
+	$: {
+		permisosModulo;
+		puedeCrearConductores = puedeCrear(MODULO);
+		puedeEditarConductores = puedeEditar(MODULO);
+		puedeEliminarConductores = puedeEliminar(MODULO);
+		puedeCambiarEstadoConductores = puedeCambiarEstado(MODULO);
+	}
 
 	const fmtDateTime = (value) => {
 		if (!value) return '—';
@@ -40,6 +52,11 @@
 	const fmtTime = (value) => (value ? value.toString().slice(0, 8) : '');
 
 	onMount(async () => {
+		if (!puedeVerModulo(MODULO)) {
+			addNotificacion('No tienes acceso al módulo Conductores', 'error');
+			goto('/');
+			return;
+		}
 		await cargarConductores();
 	});
 

@@ -1,20 +1,36 @@
 <script>
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { asignaciones, addNotificacion, vehiculos, conductores, trayectos, clientes } from '$lib/stores.js';
 	import { trayectoService, vehiculoService, conductorService, clienteService } from '$lib/api/services.js';
-	import { puedeCrear, puedeEditar, puedeEliminar } from '$lib/permisos.js';
+	import { puedeCrear, puedeEditar, puedeEliminar, puedeVerModulo } from '$lib/permisos.js';
+	import { modulosConfig } from '$lib/modulos.js';
 
 	let mostrarFormulario = false;
 	let confirmAction = { open: false, id: null, label: '' };
 	let editingId = null;
 	let formData = { id_vehiculo: '', id_conductor: '', id_trayecto: '', id_cliente: '' };
 
-	// Permisos
-	$: puedeCrearAsignaciones = puedeCrear();
-	$: puedeEditarAsignaciones = puedeEditar();
-	$: puedeEliminarAsignaciones = puedeEliminar();
+	const MODULO = 'asignaciones';
+
+	let puedeCrearAsignaciones = false;
+	let puedeEditarAsignaciones = false;
+	let puedeEliminarAsignaciones = false;
+
+	$: permisosModulo = $modulosConfig;
+	$: {
+		permisosModulo;
+		puedeCrearAsignaciones = puedeCrear(MODULO);
+		puedeEditarAsignaciones = puedeEditar(MODULO);
+		puedeEliminarAsignaciones = puedeEliminar(MODULO);
+	}
 
 	onMount(async () => {
+		if (!puedeVerModulo(MODULO)) {
+			addNotificacion('No tienes acceso al módulo Asignaciones', 'error');
+			goto('/');
+			return;
+		}
 		await cargarDatos();
 	});
 

@@ -1,18 +1,36 @@
 <script>
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { roles, addNotificacion } from '$lib/stores.js';
 	import { rolService } from '$lib/api/services.js';
-	import { esAdministrador } from '$lib/permisos.js';
+	import { puedeAccion, puedeVerModulo } from '$lib/permisos.js';
+	import { modulosConfig } from '$lib/modulos.js';
 
 	let mostrarFormulario = false;
 	let editandoId = null;
 	let confirmDelete = { open: false, id: null, nombre: '' };
 	let formData = { nombre_rol: '', descripcion: '' };
 
-	// Solo administrador puede gestionar roles
-	$: soloAdmin = esAdministrador();
+	const MODULO = 'roles';
+	let permiteCrearRol = false;
+	let permiteEditarRol = false;
+	let permiteEliminarRol = false;
+
+	// Solo quien tenga permisos configurados puede gestionar roles
+	$: permisosModulo = $modulosConfig;
+	$: {
+		permisosModulo;
+		permiteCrearRol = puedeAccion(MODULO, 'crear');
+		permiteEditarRol = puedeAccion(MODULO, 'editar');
+		permiteEliminarRol = puedeAccion(MODULO, 'eliminar');
+	}
 
 	onMount(async () => {
+		if (!puedeVerModulo(MODULO)) {
+			addNotificacion('No tienes acceso al módulo Roles', 'error');
+			goto('/');
+			return;
+		}
 		await cargarRoles();
 	});
 
@@ -92,13 +110,13 @@
 			</div>
 		</div>
 		<div class="hero-actions">
-			{#if soloAdmin}
+			{#if permiteCrearRol}
 				<button class="primary" on:click={abrirFormulario}>+ Nuevo rol</button>
 			{/if}
 		</div>
 	</section>
 
-	{#if mostrarFormulario && soloAdmin}
+	{#if mostrarFormulario && (permiteCrearRol || permiteEditarRol)}
 		<section class="panel">
 			<div class="panel-head">
 				<div>
@@ -156,11 +174,13 @@
 							<tr>
 								<td>{rol.nombre_rol}</td>
 								<td>{rol.descripcion || '—'}</td>
-								<td class="actions">
-									{#if soloAdmin}
-										<button class="ghost" on:click={() => editarRol(rol)}>Editar</button>
-										<button class="danger" on:click={() => (confirmDelete = { open: true, id: rol.id_rol, nombre: rol.nombre_rol })}>Eliminar</button>
-									{/if}
+									<td class="actions">
+										{#if permiteEditarRol}
+											<button class="ghost" on:click={() => editarRol(rol)}>Editar</button>
+										{/if}
+										{#if permiteEliminarRol}
+											<button class="danger" on:click={() => (confirmDelete = { open: true, id: rol.id_rol, nombre: rol.nombre_rol })}>Eliminar</button>
+										{/if}
 								</td>
 							</tr>
 						{/each}

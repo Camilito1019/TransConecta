@@ -1,8 +1,13 @@
 <script>
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { addNotificacion } from '$lib/stores.js';
 	import { conductorService } from '$lib/api/services.js';
+	import { puedeAccion, puedeVerModulo } from '$lib/permisos.js';
+	import { modulosConfig } from '$lib/modulos.js';
 
+	const MODULO = 'registroHoras';
+	let puedeRegistrar = false;
 	let conductores = [];
 	let loadingConductores = true;
 	let detalle = null;
@@ -15,7 +20,15 @@
 		observaciones: ''
 	};
 
+	$: permisosModulo = $modulosConfig;
+	$: { permisosModulo; puedeRegistrar = puedeAccion(MODULO, 'crear'); }
+
 	onMount(async () => {
+		if (!puedeVerModulo(MODULO)) {
+			addNotificacion('No tienes acceso al módulo Registro de Horas', 'error');
+			goto('/');
+			return;
+		}
 		await cargarConductores();
 	});
 
@@ -51,11 +64,22 @@
 		if (!form.fecha || !form.hora_inicio || !form.hora_fin) return 0;
 		const inicio = new Date(`${form.fecha}T${form.hora_inicio}`);
 		const fin = new Date(`${form.fecha}T${form.hora_fin}`);
-		const diff = (fin - inicio) / (1000 * 60 * 60);
+		const diff = (fin.getTime() - inicio.getTime()) / (1000 * 60 * 60);
 		return Number.isFinite(diff) ? Math.max(diff, 0) : 0;
 	}
 
+	function handleConductorChange(event) {
+		const target = /** @type {HTMLSelectElement} */ (event.target);
+		const value = target?.value || '';
+		selectedId = value;
+		cargarDetalle(value);
+	}
+
 	async function registrarHoras() {
+		if (!puedeRegistrar) {
+			addNotificacion('No tienes permisos para registrar horas', 'error');
+			return;
+		}
 		if (!selectedId) {
 			addNotificacion('Selecciona un conductor', 'warning');
 			return;
@@ -118,7 +142,7 @@
 		<div class="form-grid">
 			<label class="field">
 				<span>Conductor</span>
-				<select bind:value={selectedId} on:change={(e) => cargarDetalle(e.target.value)} disabled={loadingConductores}>
+				<select bind:value={selectedId} on:change={handleConductorChange} disabled={loadingConductores}>
 					{#if loadingConductores}
 						<option>Cargando...</option>
 					{:else if conductores.length === 0}
@@ -151,7 +175,7 @@
 				<textarea rows="3" placeholder="Notas u observaciones" bind:value={form.observaciones}></textarea>
 			</label>
 			<div class="form-actions">
-				<button class="primary" on:click={registrarHoras}>Registrar</button>
+				<button class="primary" on:click={registrarHoras} disabled={!puedeRegistrar}>Registrar</button>
 			</div>
 		</div>
 	</section>

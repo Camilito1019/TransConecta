@@ -1,8 +1,10 @@
 <script>
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { usuarios, addNotificacion } from '$lib/stores.js';
 	import { usuarioService, rolService } from '$lib/api/services.js';
-	import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado } from '$lib/permisos.js';
+	import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado, puedeVerModulo } from '$lib/permisos.js';
+	import { modulosConfig } from '$lib/modulos.js';
 
 	let mostrarFormulario = false;
 	let editandoId = null;
@@ -15,13 +17,28 @@
 	};
 	let listaRoles = [];
 
-	// Permisos
-	$: puedeCrearUsuarios = puedeCrear();
-	$: puedeEditarUsuarios = puedeEditar();
-	$: puedeEliminarUsuarios = puedeEliminar();
-	$: puedeCambiarEstadoUsuarios = puedeCambiarEstado();
+	const MODULO = 'usuarios';
+
+	let puedeCrearUsuarios = false;
+	let puedeEditarUsuarios = false;
+	let puedeEliminarUsuarios = false;
+	let puedeCambiarEstadoUsuarios = false;
+
+	$: permisosModulo = $modulosConfig;
+	$: {
+		permisosModulo;
+		puedeCrearUsuarios = puedeCrear(MODULO);
+		puedeEditarUsuarios = puedeEditar(MODULO);
+		puedeEliminarUsuarios = puedeEliminar(MODULO);
+		puedeCambiarEstadoUsuarios = puedeCambiarEstado(MODULO);
+	}
 
 	onMount(async () => {
+		if (!puedeVerModulo(MODULO)) {
+			addNotificacion('No tienes acceso al módulo Usuarios', 'error');
+			goto('/');
+			return;
+		}
 		await cargarDatos();
 	});
 
@@ -381,19 +398,6 @@
 		font-size: 14px;
 		transition: border-color 0.18s ease, box-shadow 0.18s ease;
 		font-family: inherit;
-	}
-	.password-wrap { position: relative; display: flex; align-items: center; }
-	.password-wrap input { width: 100%; padding-right: 46px; }
-	.eye {
-		position: absolute;
-		right: 8px;
-		top: 50%;
-		transform: translateY(-50%);
-		border: none;
-		background: transparent;
-		cursor: pointer;
-		font-size: 16px;
-		padding: 6px;
 	}
 	.field input:focus, .field select:focus {
 		outline: none;

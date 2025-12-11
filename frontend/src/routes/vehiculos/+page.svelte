@@ -1,9 +1,11 @@
 <script>
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { vehiculos, addNotificacion } from '$lib/stores.js';
 	import { vehiculoService, documentoService } from '$lib/api/services.js';
 	import { estadoLabel, estadoClass } from '$lib/status.js';
-	import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado } from '$lib/permisos.js';
+	import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado, puedeVerModulo } from '$lib/permisos.js';
+	import { modulosConfig } from '$lib/modulos.js';
 
 	let mostrarFormulario = false;
 	let editandoId = null;
@@ -35,11 +37,21 @@
 	const API_HOST = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/api$/, '');
 	let documentosMap = {};
 
-	// Permisos
-	$: puedeCrearVehiculos = puedeCrear();
-	$: puedeEditarVehiculos = puedeEditar();
-	$: puedeEliminarVehiculos = puedeEliminar();
-	$: puedeCambiarEstadoVehiculos = puedeCambiarEstado();
+	const MODULO = 'vehiculos';
+
+	let puedeCrearVehiculos = false;
+	let puedeEditarVehiculos = false;
+	let puedeEliminarVehiculos = false;
+	let puedeCambiarEstadoVehiculos = false;
+
+	$: permisosModulo = $modulosConfig;
+	$: {
+		permisosModulo;
+		puedeCrearVehiculos = puedeCrear(MODULO);
+		puedeEditarVehiculos = puedeEditar(MODULO);
+		puedeEliminarVehiculos = puedeEliminar(MODULO);
+		puedeCambiarEstadoVehiculos = puedeCambiarEstado(MODULO);
+	}
 
 	const fmtDateTime = (value) => {
 		if (!value) return '—';
@@ -49,6 +61,11 @@
 	};
 
 	onMount(async () => {
+		if (!puedeVerModulo(MODULO)) {
+			addNotificacion('No tienes acceso al módulo Vehículos', 'error');
+			goto('/');
+			return;
+		}
 		await cargarVehiculos();
 	});
 

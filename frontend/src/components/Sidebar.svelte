@@ -1,6 +1,7 @@
 <script>
   import { goto } from '$app/navigation';
   import { logout, auth } from '../lib/stores.js';
+  import { modulosConfig } from '../lib/modulos.js';
   import { 
     tieneAccesoUsuarios, 
     tieneAccesoVehiculos, 
@@ -10,27 +11,41 @@
     tieneAccesoRoles,
     tieneAccesoClientes,
     puedeRegistrarHoras,
-    esHSEQ
+    puedeVerModulo
   } from '../lib/permisos.js';
 
   export let open = false;
+  let mostrarDashboard = false;
+  let mostrarUsuarios = false;
+  let mostrarRoles = false;
+  let mostrarClientes = false;
+  let mostrarVehiculos = false;
+  let mostrarConductores = false;
+  let mostrarTrayectos = false;
+  let mostrarAsignaciones = false;
+  let mostrarRegistroHoras = false;
 
   function handleLogout() {
     logout();
     goto('/login');
   }
 
-  // Reactivo: actualizar permisos cuando cambie el estado de auth
+  // Reactivo: actualizar permisos cuando cambie el estado de auth o la configuración de módulos
+  $: permisosModulo = $modulosConfig;
   $: usuario = $auth.usuario;
-  $: mostrarDashboard = !esHSEQ();
-  $: mostrarUsuarios = tieneAccesoUsuarios();
-  $: mostrarRoles = tieneAccesoRoles();
-  $: mostrarClientes = tieneAccesoClientes();
-  $: mostrarVehiculos = tieneAccesoVehiculos();
-  $: mostrarConductores = tieneAccesoConductores();
-  $: mostrarTrayectos = tieneAccesoTrayectos();
-  $: mostrarAsignaciones = tieneAccesoAsignaciones();
-  $: mostrarRegistroHoras = puedeRegistrarHoras();
+  $: {
+    permisosModulo;
+    $auth;
+    mostrarDashboard = puedeVerModulo('dashboard');
+    mostrarUsuarios = tieneAccesoUsuarios();
+    mostrarRoles = tieneAccesoRoles();
+    mostrarClientes = tieneAccesoClientes();
+    mostrarVehiculos = tieneAccesoVehiculos();
+    mostrarConductores = tieneAccesoConductores();
+    mostrarTrayectos = tieneAccesoTrayectos();
+    mostrarAsignaciones = tieneAccesoAsignaciones();
+    mostrarRegistroHoras = puedeRegistrarHoras();
+  }
 </script>
 
 <aside class="sidebar" class:open class:collapsed={!open}>

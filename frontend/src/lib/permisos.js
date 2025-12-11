@@ -1,5 +1,6 @@
 import { get } from 'svelte/store';
 import { auth } from './stores.js';
+import { puedeVerModulo as configPuedeVerModulo, puedeAccionModulo } from './modulos.js';
 
 /**
  * Helper para validar permisos según el rol del usuario
@@ -48,7 +49,8 @@ export function esHSEQ() {
  * ADMINISTRADOR y COORDINADOR pueden crear
  * @returns {boolean}
  */
-export function puedeCrear() {
+export function puedeCrear(modulo) {
+  if (modulo) return puedeAccion(modulo, 'crear');
   const rol = getRolActual();
   return rol === 'ADMINISTRADOR' || rol === 'COORDINADOR';
 }
@@ -58,7 +60,8 @@ export function puedeCrear() {
  * Solo ADMINISTRADOR puede editar
  * @returns {boolean}
  */
-export function puedeEditar() {
+export function puedeEditar(modulo) {
+  if (modulo) return puedeAccion(modulo, 'editar');
   return esAdministrador();
 }
 
@@ -67,7 +70,8 @@ export function puedeEditar() {
  * Solo ADMINISTRADOR puede eliminar
  * @returns {boolean}
  */
-export function puedeEliminar() {
+export function puedeEliminar(modulo) {
+  if (modulo) return puedeAccion(modulo, 'eliminar');
   return esAdministrador();
 }
 
@@ -76,8 +80,22 @@ export function puedeEliminar() {
  * Solo ADMINISTRADOR puede cambiar estados
  * @returns {boolean}
  */
-export function puedeCambiarEstado() {
+export function puedeCambiarEstado(modulo) {
+  if (modulo) return puedeAccion(modulo, 'desactivar');
   return esAdministrador();
+}
+
+// Permisos basados en configuración de módulos
+export function puedeVerModulo(modulo) {
+  const rol = getRolActual();
+  if (!rol) return false;
+  return configPuedeVerModulo(modulo, rol);
+}
+
+export function puedeAccion(modulo, accion) {
+  const rol = getRolActual();
+  if (!rol) return false;
+  return puedeAccionModulo(modulo, accion, rol);
 }
 
 /**
@@ -86,7 +104,7 @@ export function puedeCambiarEstado() {
  * @returns {boolean}
  */
 export function tieneAccesoUsuarios() {
-  return !esHSEQ();
+  return puedeVerModulo('usuarios');
 }
 
 /**
@@ -95,7 +113,7 @@ export function tieneAccesoUsuarios() {
  * @returns {boolean}
  */
 export function tieneAccesoVehiculos() {
-  return !esHSEQ();
+  return puedeVerModulo('vehiculos');
 }
 
 /**
@@ -104,7 +122,7 @@ export function tieneAccesoVehiculos() {
  * @returns {boolean}
  */
 export function tieneAccesoConductores() {
-  return !esHSEQ();
+  return puedeVerModulo('conductores');
 }
 
 /**
@@ -113,7 +131,7 @@ export function tieneAccesoConductores() {
  * @returns {boolean}
  */
 export function tieneAccesoTrayectos() {
-  return !esHSEQ();
+  return puedeVerModulo('trayectos');
 }
 
 /**
@@ -122,7 +140,7 @@ export function tieneAccesoTrayectos() {
  * @returns {boolean}
  */
 export function tieneAccesoAsignaciones() {
-  return !esHSEQ();
+  return puedeVerModulo('asignaciones');
 }
 
 /**
@@ -131,7 +149,7 @@ export function tieneAccesoAsignaciones() {
  * @returns {boolean}
  */
 export function tieneAccesoRoles() {
-  return esAdministrador();
+  return puedeVerModulo('roles');
 }
 
 /**
@@ -140,7 +158,7 @@ export function tieneAccesoRoles() {
  * @returns {boolean}
  */
 export function tieneAccesoClientes() {
-  return esAdministrador();
+  return puedeVerModulo('clientes');
 }
 
 /**
@@ -149,8 +167,7 @@ export function tieneAccesoClientes() {
  * @returns {boolean}
  */
 export function puedeRegistrarHoras() {
-  const rol = getRolActual();
-  return rol === 'ADMINISTRADOR' || rol === 'HSEQ';
+  return puedeVerModulo('registroHoras');
 }
 
 /**
@@ -159,21 +176,20 @@ export function puedeRegistrarHoras() {
  */
 export function getOpcionesMenu() {
   const rol = getRolActual();
-  
+
   const menuCompleto = [
-    { path: '/', label: 'Dashboard', icon: 'home', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
-    { path: '/usuarios', label: 'Usuarios', icon: 'users', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
-    { path: '/clientes', label: 'Clientes', icon: 'person', roles: ['ADMINISTRADOR'] },
-    { path: '/vehiculos', label: 'Vehículos', icon: 'truck', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
-    { path: '/conductores', label: 'Conductores', icon: 'user', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
-    { path: '/trayectos', label: 'Trayectos', icon: 'route', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
-    { path: '/asignaciones', label: 'Asignaciones', icon: 'calendar', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
-    { path: '/roles', label: 'Roles', icon: 'shield', roles: ['ADMINISTRADOR'] },
-    { path: '/operaciones/horas', label: 'Registro de Horas', icon: 'clock', roles: ['ADMINISTRADOR', 'HSEQ'] },
+    { path: '/', label: 'Dashboard', icon: 'home', modulo: 'dashboard' },
+    { path: '/usuarios', label: 'Usuarios', icon: 'users', modulo: 'usuarios' },
+    { path: '/clientes', label: 'Clientes', icon: 'person', modulo: 'clientes' },
+    { path: '/vehiculos', label: 'Vehículos', icon: 'truck', modulo: 'vehiculos' },
+    { path: '/conductores', label: 'Conductores', icon: 'user', modulo: 'conductores' },
+    { path: '/trayectos', label: 'Trayectos', icon: 'route', modulo: 'trayectos' },
+    { path: '/asignaciones', label: 'Asignaciones', icon: 'calendar', modulo: 'asignaciones' },
+    { path: '/roles', label: 'Roles', icon: 'shield', modulo: 'roles' },
+    { path: '/operaciones/horas', label: 'Registro de Horas', icon: 'clock', modulo: 'registroHoras' },
   ];
-  
-  // Filtrar opciones según el rol
-  return menuCompleto.filter(opcion => opcion.roles.includes(rol));
+
+  return menuCompleto.filter((opcion) => puedeVerModulo(opcion.modulo));
 }
 
 /**
@@ -199,6 +215,8 @@ export default {
   esAdministrador,
   esCoordinador,
   esHSEQ,
+  puedeVerModulo,
+  puedeAccion,
   puedeCrear,
   puedeEditar,
   puedeEliminar,

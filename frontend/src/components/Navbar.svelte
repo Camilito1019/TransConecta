@@ -2,6 +2,7 @@
   import { auth, logout } from '../lib/stores.js';
   import { goto } from '$app/navigation';
   import { createEventDispatcher } from 'svelte';
+  import { esAdministrador } from '../lib/permisos.js';
 
   const dispatch = createEventDispatcher();
 
@@ -39,6 +40,11 @@
   function goCambioContrasena() {
     userMenuOpen = false;
     goto('/cambiar-contrasena');
+  }
+
+  function goModulos() {
+    userMenuOpen = false;
+    goto('/modulos');
   }
 
   function cerrarSesion() {
@@ -85,7 +91,7 @@
         </button>
 
         {#if userMenuOpen}
-          <div class="user-menu" on:click|stopPropagation>
+          <div class="user-menu" role="menu" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
             <button class="menu-item" on:click={goPerfil}>
               <span class="ms-icon">account_circle</span>
               <span>Mi Perfil</span>
@@ -94,6 +100,12 @@
               <span class="ms-icon">vpn_key</span>
               <span>Cambiar contraseña</span>
             </button>
+            {#if esAdministrador()}
+              <button class="menu-item" on:click={goModulos}>
+                <span class="ms-icon">view_quilt</span>
+                <span>Módulos</span>
+              </button>
+            {/if}
             <button class="menu-item danger" on:click={cerrarSesion}>
               <span class="ms-icon">logout</span>
               <span>Cerrar sesión</span>

@@ -3,7 +3,8 @@
   import { goto } from '$app/navigation';
   import { clientes, addNotificacion } from '$lib/stores.js';
   import { clienteService } from '$lib/api/services.js';
-  import { esAdministrador, puedeEditar, puedeEliminar, puedeCambiarEstado } from '$lib/permisos.js';
+  import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado, puedeVerModulo } from '$lib/permisos.js';
+  import { modulosConfig } from '$lib/modulos.js';
   import { estadoLabel, estadoClass } from '$lib/status.js';
 
   let mostrarFormulario = false;
@@ -12,16 +13,27 @@
   let formData = { nombre: '', telefono: '', estado: 'activo' };
   let mounted = false;
 
-  // Permisos (módulo visible solo para ADMIN en Sidebar, pero reforzamos en UI)
-  $: puedeCrearClientes = esAdministrador();
-  $: puedeEditarClientes = puedeEditar();
-  $: puedeEliminarClientes = puedeEliminar();
-  $: puedeCambiarEstadoClientes = puedeCambiarEstado();
+  const MODULO = 'clientes';
+
+  let puedeCrearClientes = false;
+  let puedeEditarClientes = false;
+  let puedeEliminarClientes = false;
+  let puedeCambiarEstadoClientes = false;
+
+  // Permisos (UI refuerza lo configurado en Módulos)
+  $: permisosModulo = $modulosConfig;
+  $: {
+    permisosModulo;
+    puedeCrearClientes = puedeCrear(MODULO);
+    puedeEditarClientes = puedeEditar(MODULO);
+    puedeEliminarClientes = puedeEliminar(MODULO);
+    puedeCambiarEstadoClientes = puedeCambiarEstado(MODULO);
+  }
 
   onMount(async () => {
     mounted = true;
-    if (!esAdministrador()) {
-      addNotificacion('Solo el rol Administrador puede gestionar clientes', 'error');
+    if (!puedeVerModulo(MODULO)) {
+      addNotificacion('No tienes acceso al módulo Clientes', 'error');
       goto('/');
       return;
     }

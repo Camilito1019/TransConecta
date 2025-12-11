@@ -4,6 +4,7 @@
 	import Notificaciones from '$components/Notificaciones.svelte';
 	import { auth, setAuthUsuario, addNotificacion } from '$lib/stores.js';
 	import { authService } from '$lib/api/services.js';
+	import { cargarConfigModulos, cargarConfigRol } from '$lib/modulos.js';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -15,6 +16,7 @@
 	let mounted = false;
 	let fetchedProfile = false;
 	let previousAuthState = false;
+	let modulosCargados = false;
 
 	// Sincronizar token INMEDIATAMENTE (antes de onMount)
 	if (typeof window !== 'undefined') {
@@ -76,15 +78,35 @@
 		if ($auth.isAuthenticated) {
 			// Usuario acaba de loguearse, resetear para que se cargue el perfil
 			fetchedProfile = false;
+			modulosCargados = false;
 		} else {
 			// Usuario se deslogueó, marcar como "cargado" para no intentar cargar
 			fetchedProfile = true;
+			modulosCargados = false;
 		}
 	}
 	
 	// Efecto reactivo: cargar perfil cuando el usuario se autentica
 	$: if (mounted && $auth.isAuthenticated && !fetchedProfile && !isPublicPage && !requiereCambioContrasena) {
 		cargarPerfil();
+	}
+
+	// Traer permisos de módulos una vez que tengamos perfil cargado
+	$: if (mounted && $auth.isAuthenticated && perfilCargado && !modulosCargados) {
+		const rol = $auth.usuario?.nombre_rol?.toUpperCase();
+		const loader = rol === 'ADMINISTRADOR'
+			? cargarConfigModulos()
+			: rol
+				? cargarConfigRol(rol)
+				: Promise.resolve();
+
+		loader
+			.then(() => { modulosCargados = true; })
+			.catch((err) => {
+				console.warn('No se pudieron sincronizar los permisos de módulos', err);
+				addNotificacion('No se pudieron cargar permisos de módulos; usando valores por defecto', 'warning');
+				modulosCargados = true;
+			});
 	}
 
 	// Redirigir a cambiar contraseña si es requerido y no está en esa página o páginas públicas

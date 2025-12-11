@@ -15,6 +15,8 @@ import vehiculoRoutes from "./routes/vehiculo.routes.js";
 import conductorRoutes from "./routes/conductor.routes.js";
 import trayectoRoutes from "./routes/trayecto.routes.js";
 import clienteRoutes from "./routes/cliente.routes.js";
+import moduloRoutes from "./routes/modulo.routes.js";
+import { bootstrapModuloPermisos } from './config/modulos.config.js';
 
 
 
@@ -33,6 +35,9 @@ app.use(cors({
 app.use(express.json());
 // Servir archivos estáticos de uploads con ruta absoluta para evitar fallos por cwd
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Garantizar que la tabla de permisos de módulos existe y tiene valores iniciales
+await bootstrapModuloPermisos();
 
 // Documentación Swagger
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
@@ -83,6 +88,7 @@ app.use("/api", vehiculoRoutes);
 app.use("/api", conductorRoutes);
 app.use("/api", trayectoRoutes);
 app.use("/api", clienteRoutes);
+app.use("/api", moduloRoutes);
 
 // Middleware para capturar rutas no encontradas (404)
 app.use((req, res) => {
