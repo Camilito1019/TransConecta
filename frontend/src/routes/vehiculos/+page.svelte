@@ -8,6 +8,7 @@
 	let mostrarFormulario = false;
 	let editandoId = null;
 	let confirmAction = { open: false, type: null, id: null, label: '' };
+	let historialModal = { open: false, data: null, loading: false };
 	let formData = {
 		placa: '',
 		modelo: '',
@@ -40,9 +41,27 @@
 	$: puedeEliminarVehiculos = puedeEliminar();
 	$: puedeCambiarEstadoVehiculos = puedeCambiarEstado();
 
+	const fmtDateTime = (value) => {
+		if (!value) return '—';
+		const d = new Date(value);
+		const t = d.getTime();
+		return Number.isNaN(t) ? value : d.toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+	};
+
 	onMount(async () => {
 		await cargarVehiculos();
 	});
+
+	async function verVehiculo(vehiculo) {
+		historialModal = { open: true, data: null, loading: true };
+		try {
+			const data = await vehiculoService.obtenerHistorial(vehiculo.id_vehiculo);
+			historialModal = { open: true, data, loading: false };
+		} catch (error) {
+			addNotificacion('No se pudo cargar el historial', 'error');
+			historialModal = { open: false, data: null, loading: false };
+		}
+	}
 
 	async function cargarVehiculos() {
 		vehiculos.update((v) => ({ ...v, loading: true }));
@@ -156,6 +175,21 @@
 		if (!archivo_url) return '#';
 		return archivo_url.startsWith('http') ? archivo_url : `${API_HOST}${archivo_url}`;
 	};
+
+	async function descargarDocumento(id_documento) {
+		try {
+			const data = await documentoService.descargarDocumento(id_documento);
+			const directUrl = data?.descarga_url || data?.archivo_url;
+			const finalUrl = directUrl?.startsWith('http') ? directUrl : directUrl ? `${API_HOST}${directUrl}` : null;
+			if (finalUrl && typeof window !== 'undefined') {
+				window.open(finalUrl, '_blank');
+			} else {
+				addNotificacion('No se pudo obtener la URL de descarga', 'warning');
+			}
+		} catch (error) {
+			addNotificacion(error.message || 'Error al descargar', 'error');
+		}
+	}
 
 	async function cargarDocumentosVehiculo(idVehiculo) {
 		cargandoDocs = true;
@@ -443,6 +477,7 @@
 									</span>
 							</td>
 							<td class="actions">
+									<button class="ghost" on:click={() => verVehiculo(v)}>Ver</button>
 								{#if puedeEditarVehiculos}
 									<button class="ghost" on:click={() => editarVehiculo(v)}>Editar</button>
 								{/if}
@@ -487,6 +522,68 @@
 				<div class="modal-actions">
 					<button class="ghost" on:click={() => (confirmAction = { open: false, type: null, id: null, label: '' })}>Cancelar</button>
 					<button class="danger" on:click={confirmarAccion}>Confirmar</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if historialModal.open}
+		<div class="modal-backdrop">
+			<div class="modal wide">
+				<p class="label">Historial de vehículo</p>
+				{#if historialModal.loading}
+					<p class="lede">Cargando...</p>
+				{:else if historialModal.data}
+					<h3>{historialModal.data.vehiculo?.placa || 'Vehículo'}</h3>
+					<p class="lede small">Marca/Modelo: {historialModal.data.vehiculo?.marca} {historialModal.data.vehiculo?.modelo} • Estado: {estadoLabel(historialModal.data.vehiculo?.estado_operativo || '')}</p>
+					<div class="detail-scroll">
+						<div class="detail-grid">
+							<div class="card">
+								<div class="card-head">
+									<h4>Documentos</h4>
+									<span class="pill">{Math.min(historialModal.data.documentos?.length || 0, 5)} / {historialModal.data.total_documentos}</span>
+								</div>
+								{#if historialModal.data.documentos?.length}
+									<div class="list-scroll">
+										<ul class="lined">
+											{#each (historialModal.data.documentos || []).slice(0,5) as d}
+												<li class="doc-row">
+													<div>
+														<strong>{fmtDateTime(d.fecha_carga)}</strong> • {d.tipo_documento}
+													</div>
+													{#if d.id_documento}
+														<button class="mini" type="button" on:click={() => descargarDocumento(d.id_documento)}>Descargar</button>
+													{/if}
+												</li>
+											{/each}
+										</ul>
+									</div>
+								{:else}
+									<p class="muted">Sin documentos</p>
+								{/if}
+							</div>
+							<div class="card full">
+								<div class="card-head">
+									<h4>Historial</h4>
+									<span class="pill muted-pill">{Math.min(historialModal.data.historial?.length || 0, 5)} / {historialModal.data.total_eventos}</span>
+								</div>
+								{#if historialModal.data.historial?.length}
+									<div class="list-scroll">
+										<ul class="lined">
+											{#each (historialModal.data.historial || []).slice(0,5) as e}
+												<li><strong>{fmtDateTime(e.fecha_evento)}</strong> • {e.descripcion_evento}</li>
+											{/each}
+										</ul>
+									</div>
+								{:else}
+									<p class="muted">Sin historial</p>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/if}
+				<div class="modal-actions">
+					<button class="ghost" on:click={() => (historialModal = { open: false, data: null, loading: false })}>Cerrar</button>
 				</div>
 			</div>
 		</div>
@@ -595,10 +692,30 @@
 	@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
 
 	.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); display: grid; place-items: center; z-index: 20; }
-	.modal { width: min(420px, 92%); background: #fff; border-radius: 16px; border: 1px solid #f0d8d3; box-shadow: 0 24px 60px rgba(0,0,0,0.12); padding: 18px 18px 16px; display: grid; gap: 10px; }
-	.modal h3 { margin: 0; font-size: 20px; font-weight: 800; }
+	.modal { width: min(440px, 92%); background: #fff; border-radius: 18px; border: 1px solid #f0d8d3; box-shadow: 0 30px 80px rgba(0,0,0,0.18); padding: 18px 18px 16px; display: grid; gap: 10px; }
+	.modal.wide { width: min(900px, 95%); }
+	.modal h3 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
 	.modal .lede { margin: 0; color: #4f4f4f; font-size: 14px; }
+	.modal .lede.small { font-size: 13px; color: #5e5e5e; }
 	.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+	.detail-scroll { max-height: 70vh; overflow-y: auto; padding-right: 6px; }
+	.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+	.card { background: linear-gradient(145deg, #fff, #fdf7f5); border: 1px solid #f1deda; border-radius: 14px; padding: 12px; box-shadow: 0 10px 24px rgba(0,0,0,0.06); display: grid; gap: 8px; }
+	.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+	.card h4 { margin: 0; font-size: 15px; font-weight: 800; }
+	.card ul { margin: 0; padding-left: 16px; display: grid; gap: 6px; font-size: 13px; }
+	.lined li { padding: 6px 0; border-bottom: 1px dashed #eee; }
+	.lined li:last-child { border-bottom: none; }
+	.list-scroll { max-height: 190px; overflow-y: auto; padding-right: 6px; }
+	.doc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+	.doc-row .mini { font-size: 12px; padding: 6px 10px; border-radius: 10px; border: 1px solid #d7e4ff; background: #eef5ff; color: #1f4b99; text-decoration: none; font-weight: 700; }
+	.doc-row .mini:hover { background: #dbe9ff; }
+	.pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #eef7ff; color: #1f4b99; font-weight: 700; font-size: 12px; }
+	.pill.muted-pill { background: #f4f4f5; color: #4f4f4f; }
+	.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+	.detail-grid h4 { margin: 0 0 4px 0; }
+	.detail-grid ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+	.muted { color: #8a8a8a; }
 
 	@media (max-width: 720px) {
 		.hero { flex-direction: column; align-items: flex-start; }

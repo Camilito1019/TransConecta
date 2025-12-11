@@ -168,7 +168,7 @@ export const documentoService = {
   },
 
   async descargarDocumento(id_documento) {
-    return `http://localhost:3000/api/documentos/${id_documento}/descargar`;
+    return api.get(`/documentos/${id_documento}/descargar`);
   },
 };
 

@@ -247,7 +247,7 @@ export const obtenerHistorialConductor = async (req, res) => {
 export const registrarHorasConduccion = async (req, res) => {
   try {
     const { id_conductor } = req.params;
-    const { fecha, hora_inicio, hora_fin, horas_manejadas, registrado_por, observaciones } = req.body;
+    const { fecha, hora_inicio, hora_fin, horas_manejadas, observaciones } = req.body;
 
     if (!id_conductor || isNaN(id_conductor)) return res.status(400).json({ error: "id_conductor inválido" });
     if (!fecha || !hora_inicio || !hora_fin || horas_manejadas == null) return res.status(400).json({ error: "Faltan campos requeridos" });
@@ -261,7 +261,16 @@ export const registrarHorasConduccion = async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING id_hora, id_conductor, fecha, hora_inicio, hora_fin, horas_manejadas, registrado_por, observaciones
     `;
-    const values = [id_conductor, fecha, hora_inicio, hora_fin, horas_manejadas, registrado_por || null, observaciones || null];
+    const values = [
+      id_conductor,
+      fecha,
+      hora_inicio,
+      hora_fin,
+      horas_manejadas,
+      // Registrar siempre al usuario autenticado; si no hay, dejar null
+      req.usuario?.id_usuario || null,
+      observaciones || null
+    ];
     const result = await db.query(query, values);
 
     // Registrar evento en historial

@@ -8,6 +8,7 @@
 	let mostrarFormulario = false;
 	let editandoId = null;
 	let confirmAction = { open: false, type: null, id: null, label: '' };
+	let detalleModal = { open: false, data: null, loading: false };
 	let formData = {
 		nombre: '',
 		cedula: '',
@@ -22,9 +23,36 @@
 	$: puedeEliminarConductores = puedeEliminar();
 	$: puedeCambiarEstadoConductores = puedeCambiarEstado();
 
+	const fmtDateTime = (value) => {
+		if (!value) return '—';
+		const d = new Date(value);
+		const t = d.getTime();
+		return Number.isNaN(t) ? value : d.toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+	};
+
+	const fmtDate = (value) => {
+		if (!value) return '—';
+		const d = new Date(value);
+		const t = d.getTime();
+		return Number.isNaN(t) ? value : d.toLocaleDateString('es-CO', { dateStyle: 'medium' });
+	};
+
+	const fmtTime = (value) => (value ? value.toString().slice(0, 8) : '');
+
 	onMount(async () => {
 		await cargarConductores();
 	});
+
+	async function verConductor(conductor) {
+		detalleModal = { open: true, data: null, loading: true };
+		try {
+			const data = await conductorService.obtenerDetalles(conductor.id_conductor);
+			detalleModal = { open: true, data, loading: false };
+		} catch (error) {
+			addNotificacion('No se pudo cargar el detalle', 'error');
+			detalleModal = { open: false, data: null, loading: false };
+		}
+	}
 
 	async function cargarConductores() {
 		conductores.update((c) => ({ ...c, loading: true }));
@@ -230,6 +258,7 @@
 									</span>
 							</td>
 							<td class="actions">
+									<button class="ghost" on:click={() => verConductor(c)}>Ver</button>
 								{#if puedeEditarConductores}
 									<button class="ghost" on:click={() => editarConductor(c)}>Editar</button>
 								{/if}
@@ -274,6 +303,89 @@
 				<div class="modal-actions">
 					<button class="ghost" on:click={() => (confirmAction = { open: false, type: null, id: null, label: '' })}>Cancelar</button>
 					<button class="danger" on:click={confirmarAccion}>Confirmar</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if detalleModal.open}
+		<div class="modal-backdrop">
+			<div class="modal wide">
+				<p class="label">Detalle de conductor</p>
+				{#if detalleModal.loading}
+					<p class="lede">Cargando...</p>
+				{:else if detalleModal.data}
+					<h3>{detalleModal.data.conductor?.nombre || 'Conductor'}</h3>
+					<p class="lede small">
+						Cédula: {detalleModal.data.conductor?.cedula} • Teléfono: {detalleModal.data.conductor?.telefono || '—'} • Licencia: {detalleModal.data.conductor?.licencia_conduccion || '—'}
+					</p>
+					<div class="detail-scroll">
+						<div class="detail-grid top-row">
+							<div class="card">
+								<div class="card-head">
+									<h4>Horas de conducción</h4>
+									<span class="pill">{Math.min(detalleModal.data.horas_conduccion?.length || 0, 5)} / {detalleModal.data.total_horas}</span>
+								</div>
+								{#if detalleModal.data.horas_conduccion?.length}
+									<div class="list-scroll">
+										<ul class="lined">
+											{#each (detalleModal.data.horas_conduccion || []).slice(0,5) as h}
+												<li>
+													<div>
+														<strong>{fmtDate(h.fecha)}</strong> • {fmtTime(h.hora_inicio)} - {fmtTime(h.hora_fin)} ({h.horas_manejadas} h)
+													</div>
+													{#if h.observaciones}<span class="muted">{h.observaciones}</span>{/if}
+												</li>
+											{/each}
+										</ul>
+									</div>
+								{:else}
+									<p class="muted">Sin registros</p>
+								{/if}
+							</div>
+							<div class="card">
+								<div class="card-head">
+									<h4>Alertas de fatiga</h4>
+									<span class="pill warning">{Math.min(detalleModal.data.alertas?.length || 0, 5)} / {detalleModal.data.total_alertas}</span>
+								</div>
+								{#if detalleModal.data.alertas?.length}
+									<div class="list-scroll">
+										<ul class="lined">
+											{#each (detalleModal.data.alertas || []).slice(0,5) as a}
+												<li>
+													<strong>{fmtDateTime(a.fecha_alerta)}</strong> • {a.descripcion}
+												</li>
+											{/each}
+										</ul>
+									</div>
+								{:else}
+									<p class="muted">Sin alertas</p>
+								{/if}
+							</div>
+						</div>
+						<div class="card full wide">
+							<div class="card-head">
+								<h4>Historial</h4>
+								<span class="pill muted-pill">{Math.min(detalleModal.data.historial?.length || 0, 5)} / {detalleModal.data.total_eventos}</span>
+							</div>
+							{#if detalleModal.data.historial?.length}
+								<div class="list-scroll">
+									<ul class="lined">
+										{#each (detalleModal.data.historial || []).slice(0,5) as e}
+											<li>
+												<strong>{fmtDateTime(e.fecha_evento)}</strong> • {e.evento}
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{:else}
+								<p class="muted">Sin historial</p>
+							{/if}
+						</div>
+					</div>
+				{/if}
+				<div class="modal-actions">
+					<button class="ghost" on:click={() => (detalleModal = { open: false, data: null, loading: false })}>Cerrar</button>
 				</div>
 			</div>
 		</div>
@@ -357,10 +469,26 @@
 	@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
 
 	.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); display: grid; place-items: center; z-index: 20; }
-	.modal { width: min(420px, 92%); background: #fff; border-radius: 16px; border: 1px solid #f0d8d3; box-shadow: 0 24px 60px rgba(0,0,0,0.12); padding: 18px 18px 16px; display: grid; gap: 10px; }
-	.modal h3 { margin: 0; font-size: 20px; font-weight: 800; }
+	.modal { width: min(440px, 92%); background: #fff; border-radius: 18px; border: 1px solid #f0d8d3; box-shadow: 0 30px 80px rgba(0,0,0,0.18); padding: 18px 18px 16px; display: grid; gap: 10px; }
+	.modal.wide { width: min(900px, 95%); }
+	.modal h3 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
 	.modal .lede { margin: 0; color: #4f4f4f; font-size: 14px; }
+	.modal .lede.small { font-size: 13px; color: #5e5e5e; }
 	.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+	.detail-scroll { max-height: 70vh; overflow-y: auto; padding-right: 6px; }
+	.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+	.detail-grid.top-row { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+	.card { background: linear-gradient(145deg, #fff, #fdf7f5); border: 1px solid #f1deda; border-radius: 14px; padding: 12px; box-shadow: 0 10px 24px rgba(0,0,0,0.06); display: grid; gap: 8px; }
+	.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+	.card h4 { margin: 0; font-size: 15px; font-weight: 800; }
+	.card ul { margin: 0; padding-left: 16px; display: grid; gap: 6px; font-size: 13px; }
+	.lined li { padding: 6px 0; border-bottom: 1px dashed #eee; }
+	.lined li:last-child { border-bottom: none; }
+	.list-scroll { max-height: 190px; overflow-y: auto; padding-right: 6px; }
+	.pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #eef7ff; color: #1f4b99; font-weight: 700; font-size: 12px; }
+	.pill.warning { background: #fff4e5; color: #8a4b14; }
+	.pill.muted-pill { background: #f4f4f5; color: #4f4f4f; }
+	.muted { color: #8a8a8a; }
 
 	@media (max-width: 720px) {
 		.hero { flex-direction: column; align-items: flex-start; }

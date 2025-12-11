@@ -92,10 +92,10 @@ export const asignarTrayecto = async (req, res) => {
 
     // Insertar en Vehiculo_Conductor_Trayecto
     const vehiculoTrayectoRes = await client.query(
-      `INSERT INTO Vehiculo_Conductor_Trayecto (id_vehiculo, id_conductor, id_trayecto, id_cliente, fecha_asignacion)
-       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-       RETURNING id_asignacion, id_vehiculo, id_conductor, id_trayecto, id_cliente, fecha_asignacion`,
-      [id_vehiculo, id_conductor, id_trayecto, id_cliente]
+      `INSERT INTO Vehiculo_Conductor_Trayecto (id_vehiculo, id_conductor, id_trayecto, id_cliente, fecha_asignacion, registrado_por)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
+       RETURNING id_asignacion, id_vehiculo, id_conductor, id_trayecto, id_cliente, fecha_asignacion, registrado_por`,
+      [id_vehiculo, id_conductor, id_trayecto, id_cliente, req.usuario?.id_usuario || null]
     );
 
     // Actualizar estado del conductor a "en_ruta"
@@ -248,10 +248,11 @@ export const actualizarAsignacion = async (req, res) => {
            id_conductor = $2,
            id_trayecto = $3,
            id_cliente = $4,
-           fecha_asignacion = CURRENT_TIMESTAMP
-         WHERE id_asignacion = $5
-         RETURNING id_asignacion, id_vehiculo, id_conductor, id_trayecto, id_cliente, fecha_asignacion`,
-        [id_vehiculo, id_conductor, id_trayecto, id_cliente, id_asignacion]
+           fecha_asignacion = CURRENT_TIMESTAMP,
+           registrado_por = $5
+         WHERE id_asignacion = $6
+         RETURNING id_asignacion, id_vehiculo, id_conductor, id_trayecto, id_cliente, fecha_asignacion, registrado_por`,
+        [id_vehiculo, id_conductor, id_trayecto, id_cliente, req.usuario?.id_usuario || null, id_asignacion]
     );
 
     // Actualizar estados para el conductor/vehículo anterior si ya no tienen asignaciones
