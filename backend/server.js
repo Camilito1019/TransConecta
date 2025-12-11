@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { db } from './config/db.js';
 import bcrypt from 'bcryptjs';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger.config.js';
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import roleRoutes from "./routes/role.routes.js";
@@ -26,9 +28,24 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static('uploads')); // Servir archivos estáticos
 
+// Documentación Swagger
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'TransConecta API Documentation',
+    swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        docExpansion: 'none',
+        filter: true,
+        showExtensions: true,
+        showCommonExtensions: true,
+        tryItOutEnabled: true
+    }
+}));
+
 // RUTA PRINCIPAL PARA QUE NO SALGA "Cannot GET /"
 app.get('/', (req, res) => {
-    res.send("Bienvenido a la API de TransConecta 🚀");
+    res.send("Bienvenido a la API de TransConecta 🚀 - Documentación disponible en /docs");
 });
 
 // Endpoint para probar la conexión con Docker/PostgreSQL
