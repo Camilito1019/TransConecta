@@ -5,14 +5,14 @@ export const asignarTrayecto = async (req, res) => {
   const client = await db.connect();
 
   try {
-    const { id_vehiculo, id_conductor, id_trayecto } = req.body;
+    const { id_vehiculo, id_conductor, id_trayecto, id_cliente } = req.body;
 
-    if (!id_vehiculo || !id_conductor || !id_trayecto) {
-      return res.status(400).json({ error: "Faltan campos: id_vehiculo, id_conductor, id_trayecto" });
+    if (!id_vehiculo || !id_conductor || !id_trayecto || !id_cliente) {
+      return res.status(400).json({ error: "Faltan campos: id_vehiculo, id_conductor, id_trayecto, id_cliente" });
     }
 
-    if ([id_vehiculo, id_conductor, id_trayecto].some((v) => isNaN(Number(v)))) {
-      return res.status(400).json({ error: "id_vehiculo, id_conductor e id_trayecto deben ser numéricos" });
+    if ([id_vehiculo, id_conductor, id_trayecto, id_cliente].some((v) => isNaN(Number(v)))) {
+      return res.status(400).json({ error: "id_vehiculo, id_conductor, id_trayecto e id_cliente deben ser numéricos" });
     }
 
     await client.query("BEGIN");
@@ -72,6 +72,16 @@ export const asignarTrayecto = async (req, res) => {
       return res.status(404).json({ error: "Trayecto no encontrado" });
     }
 
+    const clienteRes = await client.query("SELECT estado FROM Cliente WHERE id_cliente = $1", [id_cliente]);
+    if (clienteRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+    if ((clienteRes.rows[0].estado || "").toLowerCase() !== "activo") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "El cliente está inactivo" });
+    }
+
     // Insertar en Conductor_Trayecto
     const conductorTrayectoRes = await client.query(
       `INSERT INTO Conductor_Trayecto (id_conductor, id_trayecto, fecha_asignacion)
@@ -82,10 +92,10 @@ export const asignarTrayecto = async (req, res) => {
 
     // Insertar en Vehiculo_Conductor_Trayecto
     const vehiculoTrayectoRes = await client.query(
-      `INSERT INTO Vehiculo_Conductor_Trayecto (id_vehiculo, id_conductor, id_trayecto, fecha_asignacion)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-       RETURNING id_asignacion, id_vehiculo, id_conductor, id_trayecto, fecha_asignacion`,
-      [id_vehiculo, id_conductor, id_trayecto]
+      `INSERT INTO Vehiculo_Conductor_Trayecto (id_vehiculo, id_conductor, id_trayecto, id_cliente, fecha_asignacion)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       RETURNING id_asignacion, id_vehiculo, id_conductor, id_trayecto, id_cliente, fecha_asignacion`,
+      [id_vehiculo, id_conductor, id_trayecto, id_cliente]
     );
 
     // Actualizar estado del conductor a "en_ruta"
@@ -129,18 +139,18 @@ export const asignarTrayecto = async (req, res) => {
 // Actualizar una asignación existente
 export const actualizarAsignacion = async (req, res) => {
   const { id_asignacion } = req.params;
-  const { id_vehiculo, id_conductor, id_trayecto } = req.body;
+  const { id_vehiculo, id_conductor, id_trayecto, id_cliente } = req.body;
 
   if (!id_asignacion || isNaN(id_asignacion)) {
     return res.status(400).json({ error: "id_asignacion inválido" });
   }
 
-  if (!id_vehiculo || !id_conductor || !id_trayecto) {
-    return res.status(400).json({ error: "Faltan campos: id_vehiculo, id_conductor, id_trayecto" });
+  if (!id_vehiculo || !id_conductor || !id_trayecto || !id_cliente) {
+    return res.status(400).json({ error: "Faltan campos: id_vehiculo, id_conductor, id_trayecto, id_cliente" });
   }
 
-  if ([id_vehiculo, id_conductor, id_trayecto].some((v) => isNaN(Number(v)))) {
-    return res.status(400).json({ error: "id_vehiculo, id_conductor e id_trayecto deben ser numéricos" });
+  if ([id_vehiculo, id_conductor, id_trayecto, id_cliente].some((v) => isNaN(Number(v)))) {
+    return res.status(400).json({ error: "id_vehiculo, id_conductor, id_trayecto e id_cliente deben ser numéricos" });
   }
 
   const client = await db.connect();
@@ -149,7 +159,7 @@ export const actualizarAsignacion = async (req, res) => {
     await client.query("BEGIN");
 
     const asignacionActual = await client.query(
-      `SELECT id_vehiculo, id_conductor, id_trayecto FROM Vehiculo_Conductor_Trayecto WHERE id_asignacion = $1`,
+      `SELECT id_vehiculo, id_conductor, id_trayecto, id_cliente FROM Vehiculo_Conductor_Trayecto WHERE id_asignacion = $1`,
       [id_asignacion]
     );
 
@@ -209,6 +219,13 @@ export const actualizarAsignacion = async (req, res) => {
     const trayecto = await client.query("SELECT 1 FROM Trayecto WHERE id_trayecto = $1", [id_trayecto]);
     if (trayecto.rows.length === 0) throw new Error("Trayecto no encontrado");
 
+    const clienteRes = await client.query("SELECT estado FROM Cliente WHERE id_cliente = $1", [id_cliente]);
+    if (clienteRes.rows.length === 0) throw new Error("Cliente no encontrado");
+    if ((clienteRes.rows[0].estado || "").toLowerCase() !== "activo") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "El cliente está inactivo" });
+    }
+
     const cambioConductorTrayecto =
       Number(actual.id_conductor) !== Number(id_conductor) || Number(actual.id_trayecto) !== Number(id_trayecto);
 
@@ -226,14 +243,15 @@ export const actualizarAsignacion = async (req, res) => {
     }
 
     const updateRes = await client.query(
-      `UPDATE Vehiculo_Conductor_Trayecto
-       SET id_vehiculo = $1,
+        `UPDATE Vehiculo_Conductor_Trayecto
+         SET id_vehiculo = $1,
            id_conductor = $2,
            id_trayecto = $3,
+           id_cliente = $4,
            fecha_asignacion = CURRENT_TIMESTAMP
-       WHERE id_asignacion = $4
-       RETURNING id_asignacion, id_vehiculo, id_conductor, id_trayecto, fecha_asignacion`,
-      [id_vehiculo, id_conductor, id_trayecto, id_asignacion]
+         WHERE id_asignacion = $5
+         RETURNING id_asignacion, id_vehiculo, id_conductor, id_trayecto, id_cliente, fecha_asignacion`,
+        [id_vehiculo, id_conductor, id_trayecto, id_cliente, id_asignacion]
     );
 
     // Actualizar estados para el conductor/vehículo anterior si ya no tienen asignaciones
@@ -295,10 +313,16 @@ export const actualizarAsignacion = async (req, res) => {
 };
 
 // Listar trayectos disponibles
-export const listarTrayectos = async (req, res) => {
+export const listarTrayectos = async (_req, res) => {
   try {
     const result = await db.query(
-      `SELECT id_trayecto, origen, destino, distancia_km, tiempo_estimado FROM Trayecto ORDER BY id_trayecto`
+      `SELECT t.id_trayecto,
+              t.origen,
+              t.destino,
+              t.distancia_km,
+              t.tiempo_estimado
+       FROM Trayecto t
+       ORDER BY t.id_trayecto`
     );
     res.json({ total: result.rows.length, trayectos: result.rows });
   } catch (error) {
@@ -315,7 +339,8 @@ export const verTrayectoAsignado = async (req, res) => {
 
     // Obtener detalles de la asignación
     const asignRes = await db.query(
-      `SELECT id_asignacion, id_vehiculo, id_conductor, id_trayecto, fecha_asignacion FROM Vehiculo_Conductor_Trayecto WHERE id_asignacion = $1`,
+      `SELECT id_asignacion, id_vehiculo, id_conductor, id_trayecto, id_cliente, fecha_asignacion
+       FROM Vehiculo_Conductor_Trayecto WHERE id_asignacion = $1`,
       [id_asignacion]
     );
 
@@ -337,15 +362,26 @@ export const verTrayectoAsignado = async (req, res) => {
 
     // Obtener detalles del trayecto
     const trayectoRes = await db.query(
-      `SELECT id_trayecto, origen, destino, distancia_km, tiempo_estimado FROM Trayecto WHERE id_trayecto = $1`,
+      `SELECT id_trayecto, origen, destino, distancia_km, tiempo_estimado
+       FROM Trayecto WHERE id_trayecto = $1`,
       [asign.id_trayecto]
     );
+
+    let cliente = null;
+    if (asign.id_cliente) {
+      const clienteRes = await db.query(
+        `SELECT id_cliente, nombre, telefono, estado FROM Cliente WHERE id_cliente = $1`,
+        [asign.id_cliente]
+      );
+      cliente = clienteRes.rows[0] || null;
+    }
 
     res.json({
       asignacion: asign,
       vehiculo: vehiculoRes.rows[0] || null,
       conductor: conductorRes.rows[0] || null,
-      trayecto: trayectoRes.rows[0] || null
+      trayecto: trayectoRes.rows[0] || null,
+      cliente
     });
   } catch (error) {
     console.error("Error obteniendo trayecto asignado:", error);
@@ -370,6 +406,14 @@ export const actualizarTrayecto = async (req, res) => {
       return res.status(400).json({ error: "tiempo_estimado debe ser numérico y mayor a 0" });
     }
 
+    const actualRes = await db.query(
+      "SELECT id_trayecto FROM Trayecto WHERE id_trayecto = $1",
+      [id_trayecto]
+    );
+    if (actualRes.rows.length === 0) {
+      return res.status(404).json({ error: "Trayecto no encontrado" });
+    }
+
     const query = `
       UPDATE Trayecto
       SET origen = COALESCE($1, origen),
@@ -382,8 +426,6 @@ export const actualizarTrayecto = async (req, res) => {
 
     const values = [origen || null, destino || null, distanciaVal, tiempoVal, id_trayecto];
     const result = await db.query(query, values);
-
-    if (result.rows.length === 0) return res.status(404).json({ error: "Trayecto no encontrado" });
 
     res.json({ mensaje: "Trayecto actualizado", trayecto: result.rows[0] });
   } catch (error) {
@@ -444,7 +486,7 @@ export const desasignarTrayecto = async (req, res) => {
 };
 
 // Listar todas las asignaciones activas
-export const listarAsignaciones = async (req, res) => {
+export const listarAsignaciones = async (_req, res) => {
   try {
     const result = await db.query(
       `SELECT 
@@ -452,6 +494,7 @@ export const listarAsignaciones = async (req, res) => {
         vct.id_vehiculo,
         vct.id_conductor,
         vct.id_trayecto,
+        vct.id_cliente,
         vct.fecha_asignacion,
         v.placa AS vehiculo_placa,
         v.marca AS vehiculo_marca,
@@ -462,11 +505,13 @@ export const listarAsignaciones = async (req, res) => {
         t.destino AS trayecto_destino,
         t.distancia_km,
         t.tiempo_estimado,
+        cli.nombre AS cliente_nombre,
         'en_ruta' AS estado
       FROM Vehiculo_Conductor_Trayecto vct
       LEFT JOIN Vehiculo v ON v.id_vehiculo = vct.id_vehiculo
       LEFT JOIN Conductor c ON c.id_conductor = vct.id_conductor
       LEFT JOIN Trayecto t ON t.id_trayecto = vct.id_trayecto
+      LEFT JOIN Cliente cli ON cli.id_cliente = vct.id_cliente
       ORDER BY vct.fecha_asignacion DESC`
     );
     res.json({ total: result.rows.length, asignaciones: result.rows });
@@ -495,7 +540,9 @@ export const crearTrayecto = async (req, res) => {
     }
 
     const result = await db.query(
-      `INSERT INTO Trayecto (origen, destino, distancia_km, tiempo_estimado) VALUES ($1, $2, $3, $4) RETURNING id_trayecto, origen, destino, distancia_km, tiempo_estimado`,
+      `INSERT INTO Trayecto (origen, destino, distancia_km, tiempo_estimado)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id_trayecto, origen, destino, distancia_km, tiempo_estimado`,
       [origen, destino, distanciaVal, tiempoVal]
     );
 

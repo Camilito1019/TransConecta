@@ -222,6 +222,39 @@ export const conductorService = {
 };
 
 /**
+ * Servicio de Clientes
+ */
+export const clienteService = {
+  async crear(datos) {
+    return api.post('/clientes', datos);
+  },
+
+  async listar() {
+    return api.get('/clientes');
+  },
+
+  async obtener(id_cliente) {
+    return api.get(`/clientes/${id_cliente}`);
+  },
+
+  async actualizar(id_cliente, datos) {
+    return api.put(`/clientes/${id_cliente}`, datos);
+  },
+
+  async desactivar(id_cliente) {
+    return api.patch(`/clientes/${id_cliente}/desactivar`, {});
+  },
+
+  async activar(id_cliente) {
+    return api.patch(`/clientes/${id_cliente}/activar`, {});
+  },
+
+  async eliminar(id_cliente) {
+    return api.delete(`/clientes/${id_cliente}`);
+  },
+};
+
+/**
  * Servicio de Trayectos
  */
 export const trayectoService = {

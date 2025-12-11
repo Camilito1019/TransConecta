@@ -116,6 +116,15 @@ export const asignaciones = writable({
 });
 
 /**
+ * Store de Clientes
+ */
+export const clientes = writable({
+  items: [],
+  loading: false,
+  error: null,
+});
+
+/**
  * Store de Roles
  */
 export const roles = writable({

@@ -1,13 +1,13 @@
 <script>
 	import { onMount } from 'svelte';
-	import { asignaciones, addNotificacion, vehiculos, conductores, trayectos } from '$lib/stores.js';
-	import { trayectoService, vehiculoService, conductorService } from '$lib/api/services.js';
+	import { asignaciones, addNotificacion, vehiculos, conductores, trayectos, clientes } from '$lib/stores.js';
+	import { trayectoService, vehiculoService, conductorService, clienteService } from '$lib/api/services.js';
 	import { puedeCrear, puedeEditar, puedeEliminar } from '$lib/permisos.js';
 
 	let mostrarFormulario = false;
 	let confirmAction = { open: false, id: null, label: '' };
 	let editingId = null;
-	let formData = { id_vehiculo: '', id_conductor: '', id_trayecto: '' };
+	let formData = { id_vehiculo: '', id_conductor: '', id_trayecto: '', id_cliente: '' };
 
 	// Permisos
 	$: puedeCrearAsignaciones = puedeCrear();
@@ -20,14 +20,16 @@
 
 	async function cargarDatos() {
 		try {
-			const [vehRes, condRes, trayRes] = await Promise.all([
+			const [vehRes, condRes, trayRes, cliRes] = await Promise.all([
 				vehiculoService.listar(),
 				conductorService.listar(),
-				trayectoService.listar()
+				trayectoService.listar(),
+				clienteService.listar()
 			]);
 			vehiculos.update((v) => ({ ...v, items: vehRes.vehiculos || [] }));
 			conductores.update((c) => ({ ...c, items: condRes.conductores || [] }));
 			trayectos.update((t) => ({ ...t, items: trayRes.trayectos || [] }));
+			clientes.update((c) => ({ ...c, items: cliRes.clientes || [] }));
 
 			asignaciones.update((a) => ({ ...a, loading: true }));
 			const asigRes = await trayectoService.listarAsignaciones();
@@ -39,14 +41,15 @@
 	}
 
 	async function guardarAsignacion() {
-		if (!formData.id_vehiculo || !formData.id_conductor || !formData.id_trayecto) {
+		if (!formData.id_vehiculo || !formData.id_conductor || !formData.id_trayecto || !formData.id_cliente) {
 			addNotificacion('Completa todos los campos', 'warning');
 			return;
 		}
 		const payload = {
 			id_vehiculo: Number(formData.id_vehiculo),
 			id_conductor: Number(formData.id_conductor),
-			id_trayecto: Number(formData.id_trayecto)
+			id_trayecto: Number(formData.id_trayecto),
+			id_cliente: Number(formData.id_cliente)
 		};
 		try {
 			if (editingId) {
@@ -56,7 +59,7 @@
 				await trayectoService.asignarTrayecto(payload);
 				addNotificacion('Asignación creada', 'success');
 			}
-			formData = { id_vehiculo: '', id_conductor: '', id_trayecto: '' };
+			formData = { id_vehiculo: '', id_conductor: '', id_trayecto: '', id_cliente: '' };
 			editingId = null;
 			mostrarFormulario = false;
 			await cargarDatos();
@@ -70,13 +73,14 @@
 		formData = {
 			id_vehiculo: asign.id_vehiculo?.toString() || '',
 			id_conductor: asign.id_conductor?.toString() || '',
-			id_trayecto: asign.id_trayecto?.toString() || ''
+			id_trayecto: asign.id_trayecto?.toString() || '',
+			id_cliente: asign.id_cliente?.toString() || ''
 		};
 		mostrarFormulario = true;
 	}
 
 	function cancelarEdicion() {
-		formData = { id_vehiculo: '', id_conductor: '', id_trayecto: '' };
+			formData = { id_vehiculo: '', id_conductor: '', id_trayecto: '', id_cliente: '' };
 		editingId = null;
 		mostrarFormulario = false;
 	}
@@ -168,6 +172,15 @@
 					</select>
 				</label>
 				<label class="field">
+					<span>Cliente</span>
+					<select bind:value={formData.id_cliente}>
+						<option value="">Seleccionar</option>
+						{#each $clientes.items as cli}
+							<option value={String(cli.id_cliente)}>{cli.nombre}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="field">
 					<span>Trayecto</span>
 					<select bind:value={formData.id_trayecto}>
 						<option value="">Seleccionar</option>
@@ -208,6 +221,7 @@
 						<tr>
 							<th>Vehículo</th>
 							<th>Conductor</th>
+							<th>Cliente</th>
 							<th>Trayecto</th>
 							<th>Fecha</th>
 							<th></th>
@@ -218,6 +232,7 @@
 							<tr>
 								<td>{a.vehiculo_placa || '—'} · {a.vehiculo_marca || ''} {a.vehiculo_modelo || ''}</td>
 								<td>{a.conductor_nombre || '—'} ({a.conductor_cedula || '—'})</td>
+								<td>{a.cliente_nombre || '—'}</td>
 								<td>{a.trayecto_origen || '—'} → {a.trayecto_destino || '—'}</td>
 								<td>{a.fecha_asignacion ? a.fecha_asignacion.substring(0, 10) : '—'}</td>
 								<td class="actions">

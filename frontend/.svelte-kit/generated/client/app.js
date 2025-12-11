@@ -22,24 +22,27 @@ export const nodes = [
 	() => import('./nodes/18'),
 	() => import('./nodes/19'),
 	() => import('./nodes/20'),
-	() => import('./nodes/21')
+	() => import('./nodes/21'),
+	() => import('./nodes/22'),
+	() => import('./nodes/23')
 ];
 
-export const server_loads = [0,2,4,6,7,8,9];
+export const server_loads = [0,2,4,5,7,8,9,10];
 
 export const dictionary = {
-		"/": [~10],
-		"/asignaciones": [11,[2]],
-		"/cambiar-contrasena": [12,[3]],
-		"/conductores": [13,[4]],
-		"/login": [~14,[5]],
-		"/operaciones/horas": [15],
-		"/perfil": [16],
-		"/recuperar-contrasena": [17],
-		"/roles": [18,[6]],
-		"/trayectos": [19,[7]],
-		"/usuarios": [20,[8]],
-		"/vehiculos": [21,[9]]
+		"/": [~11],
+		"/asignaciones": [12,[2]],
+		"/cambiar-contrasena": [13,[3]],
+		"/clientes": [14,[4]],
+		"/conductores": [15,[5]],
+		"/login": [~16,[6]],
+		"/operaciones/horas": [17],
+		"/perfil": [18],
+		"/recuperar-contrasena": [19],
+		"/roles": [20,[7]],
+		"/trayectos": [21,[8]],
+		"/usuarios": [22,[9]],
+		"/vehiculos": [23,[10]]
 	};
 
 export const hooks = {

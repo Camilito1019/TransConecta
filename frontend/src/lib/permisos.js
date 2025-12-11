@@ -135,6 +135,15 @@ export function tieneAccesoRoles() {
 }
 
 /**
+ * Verifica si el usuario tiene acceso a clientes
+ * Solo ADMINISTRADOR
+ * @returns {boolean}
+ */
+export function tieneAccesoClientes() {
+  return esAdministrador();
+}
+
+/**
  * Verifica si el usuario puede registrar horas de conducción
  * HSEQ y ADMINISTRADOR pueden registrar horas
  * @returns {boolean}
@@ -154,6 +163,7 @@ export function getOpcionesMenu() {
   const menuCompleto = [
     { path: '/', label: 'Dashboard', icon: 'home', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
     { path: '/usuarios', label: 'Usuarios', icon: 'users', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
+    { path: '/clientes', label: 'Clientes', icon: 'person', roles: ['ADMINISTRADOR'] },
     { path: '/vehiculos', label: 'Vehículos', icon: 'truck', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
     { path: '/conductores', label: 'Conductores', icon: 'user', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
     { path: '/trayectos', label: 'Trayectos', icon: 'route', roles: ['ADMINISTRADOR', 'COORDINADOR'] },
@@ -199,6 +209,7 @@ export default {
   tieneAccesoTrayectos,
   tieneAccesoAsignaciones,
   tieneAccesoRoles,
+  tieneAccesoClientes,
   puedeRegistrarHoras,
   getOpcionesMenu,
   getMensajePermisosDenegados

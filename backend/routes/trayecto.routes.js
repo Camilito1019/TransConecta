@@ -53,6 +53,10 @@ const router = express.Router();
  *                 type: string
  *                 description: Descripción adicional del trayecto
  *                 example: Ruta por autopista principal
+ *               id_cliente:
+ *                 type: integer
+ *                 description: ID del cliente asociado (opcional)
+ *                 example: 3
  *     responses:
  *       201:
  *         description: Trayecto creado exitosamente
@@ -135,6 +139,10 @@ router.get("/trayectos", verifyToken, listarTrayectos);
  *               descripcion:
  *                 type: string
  *                 example: Ruta por autopista principal
+ *               id_cliente:
+ *                 type: integer
+ *                 description: ID del cliente asociado (opcional)
+ *                 example: 3
  *     responses:
  *       200:
  *         description: Trayecto actualizado exitosamente

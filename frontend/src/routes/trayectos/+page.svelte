@@ -96,6 +96,7 @@
 		total: $trayectos.items.length,
 		distanciaTotal: $trayectos.items.reduce((acc, t) => acc + Number(t.distancia_km || 0), 0)
 	};
+
 </script>
 
 <svelte:head>
@@ -267,7 +268,7 @@
 
 	.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 14px; }
 	.field { display: grid; gap: 6px; font-size: 14px; color: #3f3f46; }
-	.field input, .field select, .field textarea {
+	.field input {
 		padding: 12px 12px;
 		border-radius: 12px;
 		border: 1.5px solid #e6e6e9;
@@ -276,14 +277,12 @@
 		transition: border-color 0.18s ease, box-shadow 0.18s ease;
 		font-family: inherit;
 	}
-	.field textarea { resize: vertical; }
-	.field input:focus, .field select:focus, .field textarea:focus {
+	.field input:focus {
 		outline: none;
 		border-color: #e3473c;
 		box-shadow: 0 10px 30px rgba(227, 71, 60, 0.12);
 		background: #fff;
 	}
-	.field.full { grid-column: 1 / -1; }
 	.form-actions { grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 4px; justify-content: flex-end; }
 
 	.table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid #f1f1f1; box-shadow: 0 12px 32px rgba(0,0,0,0.04); }

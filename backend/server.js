@@ -14,6 +14,7 @@ import recuperarContrasenaRoutes from "./routes/recuperar_contrasena.routes.js";
 import vehiculoRoutes from "./routes/vehiculo.routes.js";
 import conductorRoutes from "./routes/conductor.routes.js";
 import trayectoRoutes from "./routes/trayecto.routes.js";
+import clienteRoutes from "./routes/cliente.routes.js";
 
 
 
@@ -81,6 +82,7 @@ app.use("/api", recuperarContrasenaRoutes);
 app.use("/api", vehiculoRoutes);
 app.use("/api", conductorRoutes);
 app.use("/api", trayectoRoutes);
+app.use("/api", clienteRoutes);
 
 // Middleware para capturar rutas no encontradas (404)
 app.use((req, res) => {
@@ -149,6 +151,15 @@ app.use((req, res) => {
                 'GET /api/asignaciones',
                 'GET /api/asignaciones/:id_asignacion',
                 'DELETE /api/asignaciones/:id_asignacion'
+            ],
+            clientes: [
+                'POST /api/clientes',
+                'GET /api/clientes',
+                'GET /api/clientes/:id_cliente',
+                'PUT /api/clientes/:id_cliente',
+                'PATCH /api/clientes/:id_cliente/desactivar',
+                'PATCH /api/clientes/:id_cliente/activar',
+                'DELETE /api/clientes/:id_cliente'
             ]
         }
     });

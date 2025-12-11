@@ -27,7 +27,7 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/asignaciones" | "/cambiar-contrasena" | "/conductores" | "/login" | "/operaciones" | "/operaciones/horas" | "/perfil" | "/recuperar-contrasena" | "/roles" | "/trayectos" | "/usuarios" | "/vehiculos";
+		RouteId(): "/" | "/asignaciones" | "/cambiar-contrasena" | "/clientes" | "/conductores" | "/login" | "/operaciones" | "/operaciones/horas" | "/perfil" | "/recuperar-contrasena" | "/roles" | "/trayectos" | "/usuarios" | "/vehiculos";
 		RouteParams(): {
 			
 		};
@@ -35,6 +35,7 @@ declare module "$app/types" {
 			"/": Record<string, never>;
 			"/asignaciones": Record<string, never>;
 			"/cambiar-contrasena": Record<string, never>;
+			"/clientes": Record<string, never>;
 			"/conductores": Record<string, never>;
 			"/login": Record<string, never>;
 			"/operaciones": Record<string, never>;
@@ -46,7 +47,7 @@ declare module "$app/types" {
 			"/usuarios": Record<string, never>;
 			"/vehiculos": Record<string, never>
 		};
-		Pathname(): "/" | "/asignaciones" | "/asignaciones/" | "/cambiar-contrasena" | "/cambiar-contrasena/" | "/conductores" | "/conductores/" | "/login" | "/login/" | "/operaciones" | "/operaciones/" | "/operaciones/horas" | "/operaciones/horas/" | "/perfil" | "/perfil/" | "/recuperar-contrasena" | "/recuperar-contrasena/" | "/roles" | "/roles/" | "/trayectos" | "/trayectos/" | "/usuarios" | "/usuarios/" | "/vehiculos" | "/vehiculos/";
+		Pathname(): "/" | "/asignaciones" | "/asignaciones/" | "/cambiar-contrasena" | "/cambiar-contrasena/" | "/clientes" | "/clientes/" | "/conductores" | "/conductores/" | "/login" | "/login/" | "/operaciones" | "/operaciones/" | "/operaciones/horas" | "/operaciones/horas/" | "/perfil" | "/perfil/" | "/recuperar-contrasena" | "/recuperar-contrasena/" | "/roles" | "/roles/" | "/trayectos" | "/trayectos/" | "/usuarios" | "/usuarios/" | "/vehiculos" | "/vehiculos/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): string & {};
 	}

@@ -8,6 +8,7 @@
     tieneAccesoTrayectos, 
     tieneAccesoAsignaciones, 
     tieneAccesoRoles,
+    tieneAccesoClientes,
     puedeRegistrarHoras,
     esHSEQ
   } from '../lib/permisos.js';
@@ -24,6 +25,7 @@
   $: mostrarDashboard = !esHSEQ();
   $: mostrarUsuarios = tieneAccesoUsuarios();
   $: mostrarRoles = tieneAccesoRoles();
+  $: mostrarClientes = tieneAccesoClientes();
   $: mostrarVehiculos = tieneAccesoVehiculos();
   $: mostrarConductores = tieneAccesoConductores();
   $: mostrarTrayectos = tieneAccesoTrayectos();
@@ -47,12 +49,15 @@
       </div>
     {/if}
 
-    {#if mostrarUsuarios || mostrarRoles || mostrarVehiculos || mostrarConductores || mostrarTrayectos}
+    {#if mostrarUsuarios || mostrarRoles || mostrarClientes || mostrarVehiculos || mostrarConductores || mostrarTrayectos}
       <div class="nav-section">
         <h3>Gestión</h3>
         <ul>
           {#if mostrarUsuarios}
             <li><a href="/usuarios"><span class="ms-icon nav-icon">group</span><span>Usuarios</span></a></li>
+          {/if}
+          {#if mostrarClientes}
+            <li><a href="/clientes"><span class="ms-icon nav-icon">diversity_3</span><span>Clientes</span></a></li>
           {/if}
           {#if mostrarRoles}
             <li><a href="/roles"><span class="ms-icon nav-icon">admin_panel_settings</span><span>Roles</span></a></li>
