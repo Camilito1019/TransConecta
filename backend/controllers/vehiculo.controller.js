@@ -8,6 +8,41 @@ function isValidEmail(email) {
   return re.test(email);
 }
 
+async function limpiarDocumentosVehiculo(id_vehiculo, uploadBase) {
+  const base = uploadBase || path.resolve('uploads/vehiculos');
+  try {
+    const docs = await db.query(
+      `SELECT id_documento, archivo_url FROM documento_vehiculo WHERE id_vehiculo = $1`,
+      [id_vehiculo]
+    );
+
+    for (const doc of docs.rows) {
+      const rel = doc.archivo_url.replace('/uploads/vehiculos/', '');
+      const absPath = path.join(base, rel);
+      try {
+        await fs.unlink(absPath);
+      } catch (err) {
+        // Si ya no existe, continuar
+      }
+    }
+
+    await db.query('DELETE FROM documento_vehiculo WHERE id_vehiculo = $1', [id_vehiculo]);
+
+    // Intentar remover carpeta del vehículo (usamos ruta del primer doc para obtener la carpeta)
+    if (docs.rows.length > 0) {
+      const firstRel = docs.rows[0].archivo_url.replace('/uploads/vehiculos/', '');
+      const folder = path.join(base, path.dirname(firstRel));
+      try {
+        await fs.rm(folder, { recursive: true, force: true });
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  } catch (err) {
+    console.warn('No se pudieron limpiar documentos del vehículo', id_vehiculo, err?.message || err);
+  }
+}
+
 export const crearVehiculo = async (req, res) => {
   try {
     const { placa, marca, modelo, año, capacidad_carga, estado_operativo, tipo_combustible } = req.body;
@@ -233,6 +268,8 @@ export const eliminarVehiculo = async (req, res) => {
     if (!id_vehiculo || isNaN(id_vehiculo)) {
       return res.status(400).json({ error: "id_vehiculo inválido" });
     }
+
+    await limpiarDocumentosVehiculo(id_vehiculo);
 
     const query = `DELETE FROM Vehiculo WHERE id_vehiculo = $1 RETURNING id_vehiculo, placa, marca, modelo`;
     const result = await db.query(query, [id_vehiculo]);

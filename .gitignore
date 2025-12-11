@@ -12,6 +12,9 @@ yarn-error.log
 # Sistema
 .DS_Store
 
+# Uploads
+backend/uploads/vehiculos/
+
 # archivos de Postman
 TransConecta.postman_collection.json
 
