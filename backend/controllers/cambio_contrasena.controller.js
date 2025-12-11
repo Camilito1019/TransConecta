@@ -66,10 +66,10 @@ export const cambiarContrasena = async (req, res) => {
     // Hash de la nueva contraseña
     const nuevoHash = await bcrypt.hash(contrasena_nueva, 10);
 
-    // Actualizar contraseña en tabla Usuario (sin registrar historial)
+    // Actualizar contraseña y quitar flag de cambio obligatorio
     const updateQuery = `
       UPDATE Usuario 
-      SET "contraseña" = $1
+      SET "contraseña" = $1, requiere_cambio_contrasena = false
       WHERE id_usuario = $2
       RETURNING id_usuario, nombre_usuario, correo, estado
     `;

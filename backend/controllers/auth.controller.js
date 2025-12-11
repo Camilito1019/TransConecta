@@ -2,7 +2,7 @@ import { db } from "../config/db.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = "clave_secreta_super_segura";
+const JWT_SECRET = process.env.JWT_SECRET || 'transconecta_secret_key_2024';
 
 function decodeToken(req) {
   const authHeader = req.headers["authorization"] || "";
@@ -29,8 +29,8 @@ export const loginUsuario = async (req, res) => {
     // Buscar al usuario en la base de datos con su rol
     const query = `
       SELECT u.*, r.nombre_rol
-      FROM Usuario u
-      LEFT JOIN Rol r ON r.id_rol = u.id_rol
+      FROM usuario u
+      LEFT JOIN rol r ON r.id_rol = u.id_rol
       WHERE u.correo = $1
     `;
     const result = await db.query(query, [correo]);
@@ -40,6 +40,11 @@ export const loginUsuario = async (req, res) => {
     }
 
     const usuario = result.rows[0];
+
+    // Verificar si el usuario está activo
+    if (usuario.estado !== 'activo') {
+      return res.status(403).json({ error: "Usuario inactivo. Contacta al administrador." });
+    }
 
     // Comparar contraseñas (bcrypt)
     const coincide = await bcrypt.compare(contraseña, usuario.contraseña);
@@ -66,6 +71,7 @@ export const loginUsuario = async (req, res) => {
       correo: usuario.correo,
       estado: usuario.estado,
       nombre_rol: usuario.nombre_rol || null,
+      requiere_cambio_contrasena: usuario.requiere_cambio_contrasena || false,
       token
     });
 
@@ -93,8 +99,8 @@ export const obtenerPerfil = async (req, res) => {
   try {
     const result = await db.query(
       `SELECT u.id_usuario, u.id_rol, u.nombre_usuario, u.correo, u.estado, r.nombre_rol
-       FROM Usuario u
-       LEFT JOIN Rol r ON r.id_rol = u.id_rol
+       FROM usuario u
+       LEFT JOIN rol r ON r.id_rol = u.id_rol
        WHERE u.id_usuario = $1`,
       [decoded.id_usuario]
     );
@@ -133,7 +139,7 @@ export const actualizarPerfil = async (req, res) => {
     // Verificar unicidad del correo
     if (correo) {
       const exists = await db.query(
-        "SELECT id_usuario FROM Usuario WHERE correo = $1 AND id_usuario <> $2",
+        "SELECT id_usuario FROM usuario WHERE correo = $1 AND id_usuario <> $2",
         [correo, decoded.id_usuario]
       );
       if (exists.rows.length > 0) {
@@ -144,7 +150,7 @@ export const actualizarPerfil = async (req, res) => {
     const hashed = contraseña ? await bcrypt.hash(contraseña, 10) : null;
 
     const update = await db.query(
-      `UPDATE Usuario
+      `UPDATE usuario
        SET nombre_usuario = COALESCE($1, nombre_usuario),
            correo = COALESCE($2, correo),
            "contraseña" = COALESCE($3, "contraseña")
@@ -155,7 +161,7 @@ export const actualizarPerfil = async (req, res) => {
 
     const usuario = update.rows[0];
 
-    const rol = await db.query("SELECT nombre_rol FROM Rol WHERE id_rol = $1", [usuario.id_rol]);
+    const rol = await db.query("SELECT nombre_rol FROM rol WHERE id_rol = $1", [usuario.id_rol]);
 
     res.json({
       mensaje: "Perfil actualizado",

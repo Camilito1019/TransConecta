@@ -61,6 +61,7 @@ export const actions = {
           correo: result.correo,
           nombre_rol: result.nombre_rol || null,
           estado: result.estado,
+          requiere_cambio_contrasena: result.requiere_cambio_contrasena || false,
         },
         location: '/',
       };

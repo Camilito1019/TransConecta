@@ -3,7 +3,7 @@ import { db } from "../config/db.js";
 // Obtener todos los roles
 export const obtenerRoles = async (req, res) => {
   try {
-    const query = `SELECT * FROM Rol ORDER BY id_rol`;
+    const query = `SELECT * FROM rol ORDER BY id_rol`;
     const result = await db.query(query);
     
     res.json({
@@ -35,7 +35,7 @@ export const crearRol = async (req, res) => {
     }
 
     const query = `
-      INSERT INTO Rol (nombre_rol, descripcion)
+      INSERT INTO rol (nombre_rol, descripcion)
       VALUES ($1, $2)
       RETURNING *
     `;
@@ -63,7 +63,7 @@ export const obtenerRolPorId = async (req, res) => {
       return res.status(400).json({ error: "id_rol inválido" });
     }
 
-    const query = `SELECT * FROM Rol WHERE id_rol = $1`;
+    const query = `SELECT * FROM rol WHERE id_rol = $1`;
     const result = await db.query(query, [id_rol]);
 
     if (result.rows.length === 0) {
@@ -88,7 +88,7 @@ export const actualizarRol = async (req, res) => {
     }
 
     // Validar que el rol existe
-    const checkQuery = `SELECT * FROM Rol WHERE id_rol = $1`;
+    const checkQuery = `SELECT * FROM rol WHERE id_rol = $1`;
     const checkResult = await db.query(checkQuery, [id_rol]);
 
     if (checkResult.rows.length === 0) {
@@ -105,7 +105,7 @@ export const actualizarRol = async (req, res) => {
     }
 
     const query = `
-      UPDATE Rol 
+      UPDATE rol 
       SET nombre_rol = COALESCE($1, nombre_rol),
           descripcion = COALESCE($2, descripcion)
       WHERE id_rol = $3
@@ -142,7 +142,7 @@ export const asignarRolAUsuario = async (req, res) => {
     }
 
     // Verificar que el usuario existe
-    const userQuery = `SELECT * FROM Usuario WHERE id_usuario = $1`;
+    const userQuery = `SELECT * FROM usuario WHERE id_usuario = $1`;
     const userResult = await db.query(userQuery, [id_usuario]);
 
     if (userResult.rows.length === 0) {
@@ -150,7 +150,7 @@ export const asignarRolAUsuario = async (req, res) => {
     }
 
     // Verificar que el rol existe
-    const roleQuery = `SELECT * FROM Rol WHERE id_rol = $1`;
+    const roleQuery = `SELECT * FROM rol WHERE id_rol = $1`;
     const roleResult = await db.query(roleQuery, [id_rol]);
 
     if (roleResult.rows.length === 0) {
@@ -159,7 +159,7 @@ export const asignarRolAUsuario = async (req, res) => {
 
     // Asignar rol al usuario
     const updateQuery = `
-      UPDATE Usuario 
+      UPDATE usuario 
       SET id_rol = $1
       WHERE id_usuario = $2
       RETURNING id_usuario, nombre_usuario, correo, id_rol, estado, fecha_creacion
@@ -196,8 +196,8 @@ export const obtenerUsuarioConRol = async (req, res) => {
         r.id_rol,
         r.nombre_rol,
         r.descripcion
-      FROM Usuario u
-      LEFT JOIN Rol r ON u.id_rol = r.id_rol
+      FROM usuario u
+      LEFT JOIN rol r ON u.id_rol = r.id_rol
       WHERE u.id_usuario = $1
     `;
 
@@ -242,8 +242,8 @@ export const obtenerUsuariosConRoles = async (req, res) => {
         r.id_rol,
         r.nombre_rol,
         r.descripcion
-      FROM Usuario u
-      LEFT JOIN Rol r ON u.id_rol = r.id_rol
+      FROM usuario u
+      LEFT JOIN rol r ON u.id_rol = r.id_rol
       ORDER BY u.id_usuario
     `;
 
@@ -282,7 +282,7 @@ export const eliminarRol = async (req, res) => {
     }
 
     // Verificar que el rol no tiene usuarios asignados
-    const checkQuery = `SELECT COUNT(*) FROM Usuario WHERE id_rol = $1`;
+    const checkQuery = `SELECT COUNT(*) FROM usuario WHERE id_rol = $1`;
     const checkResult = await db.query(checkQuery, [id_rol]);
     const usuariosConRol = parseInt(checkResult.rows[0].count);
 
@@ -293,7 +293,7 @@ export const eliminarRol = async (req, res) => {
     }
 
     // Eliminar rol
-    const deleteQuery = `DELETE FROM Rol WHERE id_rol = $1 RETURNING *`;
+    const deleteQuery = `DELETE FROM rol WHERE id_rol = $1 RETURNING *`;
     const deleteResult = await db.query(deleteQuery, [id_rol]);
 
     if (deleteResult.rows.length === 0) {

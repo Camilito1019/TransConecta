@@ -36,8 +36,10 @@ class APIClient {
       ...options.headers,
     };
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    // Siempre obtener el token más reciente de localStorage
+    const currentToken = this.getToken();
+    if (currentToken) {
+      headers['Authorization'] = `Bearer ${currentToken}`;
     }
 
     const url = `${API_URL}${endpoint}`;
@@ -51,6 +53,17 @@ class APIClient {
 
       if (!response.ok) {
         const error = await response.json();
+        
+        // Si es 401 (No autorizado), limpiar sesión
+        if (response.status === 401) {
+          console.warn('🚫 Error 401: Token inválido o expirado');
+          this.clearToken();
+          // Limpiar también las cookies
+          if (typeof document !== 'undefined') {
+            document.cookie = 'auth_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+          }
+        }
+        
         throw new Error(error.error || `HTTP ${response.status}`);
       }
 

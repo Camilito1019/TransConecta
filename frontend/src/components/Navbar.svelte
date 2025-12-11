@@ -12,12 +12,18 @@
   }
 
   function goToDashboard() {
+    // HSEQ no puede acceder al dashboard
+    const rolActual = $auth.usuario?.nombre_rol?.toUpperCase();
+    if (rolActual === 'HSEQ') {
+      return; // No hacer nada
+    }
     goto('/');
   }
 
   function handleLogout() {
     logout();
-    window.location.href = '/login';
+    // Usar replace para evitar que el usuario vuelva atrás
+    window.location.replace('/login');
   }
 
   function toggleUserMenu(event) {
@@ -48,13 +54,23 @@
         <span class="ms-icon">menu</span>
       </button>
 
-      <button class="brand" on:click={goToDashboard}>
-        <div class="brand-mark">TC</div>
-        <div class="brand-text">
-          <span class="brand-eyebrow">Panel</span>
-          <span class="brand-name">TransConecta</span>
+      {#if $auth.usuario?.nombre_rol?.toUpperCase() === 'HSEQ'}
+        <div class="brand brand-disabled">
+          <div class="brand-mark">TC</div>
+          <div class="brand-text">
+            <span class="brand-eyebrow">Panel</span>
+            <span class="brand-name">TransConecta</span>
+          </div>
         </div>
-      </button>
+      {:else}
+        <button class="brand" on:click={goToDashboard}>
+          <div class="brand-mark">TC</div>
+          <div class="brand-text">
+            <span class="brand-eyebrow">Panel</span>
+            <span class="brand-name">TransConecta</span>
+          </div>
+        </button>
+      {/if}
     </div>
 
     {#if $auth.isAuthenticated}
@@ -187,6 +203,16 @@
     font-weight: 800;
     color: #2c2c2c;
     letter-spacing: -0.01em;
+  }
+
+  .brand-disabled {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    text-align: left;
+    cursor: default;
+    opacity: 0.8;
   }
 
   .right {

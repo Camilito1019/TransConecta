@@ -1,1 +1,1 @@
-export { default as component } from "../../../../src/routes/conductores/+page.svelte";
+export { default as component } from "../../../../src/routes/cambiar-contrasena/+page.svelte";

@@ -10,6 +10,7 @@ export const auth = writable({
   nombre_rol: null,
   isAuthenticated: authService.isAuthenticated(),
   loading: false,
+  loggingOut: false,
   error: null,
 });
 
@@ -38,11 +39,17 @@ export const login = async (correo, contraseña) => {
 };
 
 export const logout = () => {
+  // Marcar inmediatamente que se está cerrando sesión
+  auth.update((state) => ({
+    ...state,
+    loggingOut: true,
+  }));
+
   authService.logout();
 
   // Eliminar la cookie auth_token si existe
   if (typeof document !== 'undefined') {
-    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    document.cookie = 'auth_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
   }
 
   auth.update((state) => ({
@@ -51,6 +58,7 @@ export const logout = () => {
     usuario: null,
     nombre_rol: null,
     isAuthenticated: false,
+    loggingOut: false,
   }));
 };
 

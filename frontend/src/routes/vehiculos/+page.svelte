@@ -3,6 +3,7 @@
 	import { vehiculos, addNotificacion } from '$lib/stores.js';
 	import { vehiculoService } from '$lib/api/services.js';
 	import { estadoLabel, estadoClass } from '$lib/status.js';
+	import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado } from '$lib/permisos.js';
 
 	let mostrarFormulario = false;
 	let editandoId = null;
@@ -15,6 +16,12 @@
 		capacidad_carga: '',
 		estado_operativo: 'operativo'
 	};
+
+	// Permisos
+	$: puedeCrearVehiculos = puedeCrear();
+	$: puedeEditarVehiculos = puedeEditar();
+	$: puedeEliminarVehiculos = puedeEliminar();
+	$: puedeCambiarEstadoVehiculos = puedeCambiarEstado();
 
 	onMount(async () => {
 		await cargarVehiculos();
@@ -136,7 +143,9 @@
 			</div>
 		</div>
 		<div class="hero-actions">
-			<button class="primary" on:click={abrirFormulario}>+ Nuevo vehículo</button>
+			{#if puedeCrearVehiculos}
+				<button class="primary" on:click={abrirFormulario}>+ Nuevo vehículo</button>
+			{/if}
 		</div>
 	</section>
 
@@ -230,17 +239,23 @@
 									<span class={`status-pill status-${estadoClass(v.estado_operativo)}`}>
 										{estadoLabel(v.estado_operativo)}
 									</span>
-								</td>
-								<td class="actions">
+							</td>
+							<td class="actions">
+								{#if puedeEditarVehiculos}
 									<button class="ghost" on:click={() => editarVehiculo(v)}>Editar</button>
+								{/if}
+								{#if puedeCambiarEstadoVehiculos}
 									{#if v.estado_operativo === 'inactivo'}
 										<button class="success" on:click={() => solicitarAccion('activar', v)}>Activar</button>
 									{:else}
 										<button class="danger" on:click={() => solicitarAccion('desactivar', v)}>Desactivar</button>
 									{/if}
+								{/if}
+								{#if puedeEliminarVehiculos}
 									<button class="outline" on:click={() => solicitarAccion('eliminar', v)}>Eliminar</button>
-								</td>
-							</tr>
+								{/if}
+							</td>
+						</tr>
 						{/each}
 					</tbody>
 				</table>

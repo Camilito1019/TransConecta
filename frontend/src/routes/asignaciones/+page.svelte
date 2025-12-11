@@ -2,11 +2,17 @@
 	import { onMount } from 'svelte';
 	import { asignaciones, addNotificacion, vehiculos, conductores, trayectos } from '$lib/stores.js';
 	import { trayectoService, vehiculoService, conductorService } from '$lib/api/services.js';
+	import { puedeCrear, puedeEditar, puedeEliminar } from '$lib/permisos.js';
 
 	let mostrarFormulario = false;
 	let confirmAction = { open: false, id: null, label: '' };
 	let editingId = null;
 	let formData = { id_vehiculo: '', id_conductor: '', id_trayecto: '' };
+
+	// Permisos
+	$: puedeCrearAsignaciones = puedeCrear();
+	$: puedeEditarAsignaciones = puedeEditar();
+	$: puedeEliminarAsignaciones = puedeEliminar();
 
 	onMount(async () => {
 		await cargarDatos();
@@ -120,12 +126,16 @@
 			</div>
 		</div>
 		<div class="hero-actions">
-			{#if editingId}
-				<button class="ghost" on:click={cancelarEdicion}>Cancelar edición</button>
+			{#if puedeCrearAsignaciones || puedeEditarAsignaciones}
+				{#if editingId}
+					<button class="ghost" on:click={cancelarEdicion}>Cancelar edición</button>
+				{/if}
+				{#if (editingId && puedeEditarAsignaciones) || (!editingId && puedeCrearAsignaciones)}
+					<button class="primary" on:click={() => (mostrarFormulario = !mostrarFormulario)}>
+						{mostrarFormulario ? 'Cerrar' : editingId ? 'Editar asignación' : '+ Nueva asignación'}
+					</button>
+				{/if}
 			{/if}
-			<button class="primary" on:click={() => (mostrarFormulario = !mostrarFormulario)}>
-				{mostrarFormulario ? 'Cerrar' : editingId ? 'Editar asignación' : '+ Nueva asignación'}
-			</button>
 		</div>
 	</section>
 
@@ -211,8 +221,12 @@
 								<td>{a.trayecto_origen || '—'} → {a.trayecto_destino || '—'}</td>
 								<td>{a.fecha_asignacion ? a.fecha_asignacion.substring(0, 10) : '—'}</td>
 								<td class="actions">
-									<button class="outline" on:click={() => editarAsignacion(a)}>Editar</button>
-									<button class="danger" on:click={() => solicitarEliminar(a)}>Desasignar</button>
+									{#if puedeEditarAsignaciones}
+										<button class="outline" on:click={() => editarAsignacion(a)}>Editar</button>
+									{/if}
+									{#if puedeEliminarAsignaciones}
+										<button class="danger" on:click={() => solicitarEliminar(a)}>Desasignar</button>
+									{/if}
 								</td>
 							</tr>
 						{/each}

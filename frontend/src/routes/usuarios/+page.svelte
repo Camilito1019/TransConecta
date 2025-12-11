@@ -2,19 +2,24 @@
 	import { onMount } from 'svelte';
 	import { usuarios, addNotificacion } from '$lib/stores.js';
 	import { usuarioService, rolService } from '$lib/api/services.js';
+	import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado } from '$lib/permisos.js';
 
 	let mostrarFormulario = false;
 	let editandoId = null;
 	let confirmDelete = { open: false, id: null, nombre: '' };
-	let showPassword = false;
 	let formData = {
 		nombre_usuario: '',
 		correo: '',
-		contraseña: '',
 		id_rol: '',
 		estado: 'activo'
 	};
 	let listaRoles = [];
+
+	// Permisos
+	$: puedeCrearUsuarios = puedeCrear();
+	$: puedeEditarUsuarios = puedeEditar();
+	$: puedeEliminarUsuarios = puedeEliminar();
+	$: puedeCambiarEstadoUsuarios = puedeCambiarEstado();
 
 	onMount(async () => {
 		await cargarDatos();
@@ -37,7 +42,7 @@
 
 	function abrirFormulario() {
 		editandoId = null;
-		formData = { nombre_usuario: '', correo: '', contraseña: '', id_rol: '', estado: 'activo' };
+		formData = { nombre_usuario: '', correo: '', id_rol: '', estado: 'activo' };
 		mostrarFormulario = true;
 	}
 
@@ -46,7 +51,6 @@
 		formData = {
 			nombre_usuario: user.nombre_usuario,
 			correo: user.correo,
-			contraseña: '',
 			id_rol: user.id_rol,
 			estado: user.estado
 		};
@@ -69,17 +73,12 @@
 				});
 				addNotificacion('Usuario actualizado', 'success');
 			} else {
-				if (!formData.contraseña) {
-					addNotificacion('Ingresa contraseña para nuevo usuario', 'warning');
-					return;
-				}
 				await usuarioService.registrar(
 					formData.nombre_usuario,
 					formData.correo,
-					formData.contraseña,
 					Number(formData.id_rol)
 				);
-				addNotificacion('Usuario creado', 'success');
+				addNotificacion('Usuario creado. Se envió un correo con las credenciales.', 'success');
 			}
 			mostrarFormulario = false;
 			await cargarDatos();
@@ -146,7 +145,9 @@
 			</div>
 		</div>
 		<div class="hero-actions">
-			<button class="primary" on:click={abrirFormulario}>+ Nuevo usuario</button>
+			{#if puedeCrearUsuarios}
+				<button class="primary" on:click={abrirFormulario}>+ Nuevo usuario</button>
+			{/if}
 		</div>
 	</section>
 
@@ -168,22 +169,6 @@
 					<span>Correo</span>
 					<input type="email" placeholder="correo@empresa.com" bind:value={formData.correo} required />
 				</label>
-				{#if !editandoId}
-					<label class="field">
-						<span>Contraseña</span>
-						<div class="password-wrap">
-							<input
-								type={showPassword ? 'text' : 'password'}
-								placeholder="••••••••"
-								bind:value={formData.contraseña}
-								required
-							/>
-							<button type="button" class="eye" on:click={() => (showPassword = !showPassword)} aria-label="Mostrar u ocultar contraseña">
-								<span class="ms-icon">{showPassword ? 'visibility' : 'visibility_off'}</span>
-							</button>
-						</div>
-					</label>
-				{/if}
 				<label class="field">
 					<span>Rol</span>
 					<select bind:value={formData.id_rol} required>
@@ -253,13 +238,19 @@
 								</td>
 								<td>{new Date(user.fecha_creacion).toLocaleDateString()}</td>
 								<td class="actions">
-									<button class="ghost" on:click={() => editarUsuario(user)}>Editar</button>
-									{#if user.estado === 'activo'}
-										<button class="danger" on:click={() => desactivarUsuario(user.id_usuario)}>Desactivar</button>
-									{:else}
-										<button class="success" on:click={() => activarUsuario(user.id_usuario)}>Activar</button>
+									{#if puedeEditarUsuarios}
+										<button class="ghost" on:click={() => editarUsuario(user)}>Editar</button>
 									{/if}
-									<button class="outline" on:click={() => (confirmDelete = { open: true, id: user.id_usuario, nombre: user.nombre_usuario })}>Eliminar</button>
+									{#if puedeCambiarEstadoUsuarios}
+										{#if user.estado === 'activo'}
+											<button class="danger" on:click={() => desactivarUsuario(user.id_usuario)}>Desactivar</button>
+										{:else}
+											<button class="success" on:click={() => activarUsuario(user.id_usuario)}>Activar</button>
+										{/if}
+									{/if}
+									{#if puedeEliminarUsuarios}
+										<button class="outline" on:click={() => (confirmDelete = { open: true, id: user.id_usuario, nombre: user.nombre_usuario })}>Eliminar</button>
+									{/if}
 								</td>
 							</tr>
 						{/each}

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { conductores, addNotificacion } from '$lib/stores.js';
 	import { conductorService } from '$lib/api/services.js';
+	import { puedeCrear, puedeEditar, puedeEliminar, puedeCambiarEstado } from '$lib/permisos.js';
 	import { estadoLabel, estadoClass } from '$lib/status.js';
 
 	let mostrarFormulario = false;
@@ -14,6 +15,12 @@
 		licencia_conduccion: '',
 		estado: 'activo'
 	};
+
+	// Permisos
+	$: puedeCrearConductores = puedeCrear();
+	$: puedeEditarConductores = puedeEditar();
+	$: puedeEliminarConductores = puedeEliminar();
+	$: puedeCambiarEstadoConductores = puedeCambiarEstado();
 
 	onMount(async () => {
 		await cargarConductores();
@@ -133,7 +140,9 @@
 			</div>
 		</div>
 		<div class="hero-actions">
-			<button class="primary" on:click={abrirFormulario}>+ Nuevo conductor</button>
+			{#if puedeCrearConductores}
+				<button class="primary" on:click={abrirFormulario}>+ Nuevo conductor</button>
+			{/if}
 		</div>
 	</section>
 
@@ -219,17 +228,23 @@
 									<span class={`status-pill status-${estadoClass(c.estado)}`}>
 										{estadoLabel(c.estado)}
 									</span>
-								</td>
-								<td class="actions">
+							</td>
+							<td class="actions">
+								{#if puedeEditarConductores}
 									<button class="ghost" on:click={() => editarConductor(c)}>Editar</button>
+								{/if}
+								{#if puedeCambiarEstadoConductores}
 									{#if c.estado === 'inactivo'}
 										<button class="success" on:click={() => solicitarAccion('activar', c)}>Activar</button>
 									{:else}
 										<button class="danger" on:click={() => solicitarAccion('desactivar', c)}>Desactivar</button>
 									{/if}
+								{/if}
+								{#if puedeEliminarConductores}
 									<button class="outline" on:click={() => solicitarAccion('eliminar', c)}>Eliminar</button>
-								</td>
-							</tr>
+								{/if}
+							</td>
+						</tr>
 						{/each}
 					</tbody>
 				</table>

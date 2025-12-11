@@ -10,6 +10,10 @@ export const authService = {
 
   async logout() {
     api.clearToken();
+    // Limpiar también las cookies
+    if (typeof document !== 'undefined') {
+      document.cookie = 'auth_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    }
     return { mensaje: 'Sesión cerrada' };
   },
 
@@ -38,8 +42,8 @@ export const authService = {
  * Servicio de Usuarios
  */
 export const usuarioService = {
-  async registrar(nombre_usuario, correo, contraseña, id_rol) {
-    return api.post('/usuarios', { nombre_usuario, correo, contraseña, id_rol, estado: 'activo' });
+  async registrar(nombre_usuario, correo, id_rol) {
+    return api.post('/usuarios', { nombre_usuario, correo, id_rol, estado: 'activo' });
   },
 
   async listar() {

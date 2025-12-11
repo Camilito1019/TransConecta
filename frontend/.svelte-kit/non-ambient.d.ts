@@ -27,7 +27,7 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/asignaciones" | "/cambiar-contrasena" | "/conductores" | "/login" | "/operaciones" | "/operaciones/horas" | "/perfil" | "/roles" | "/trayectos" | "/usuarios" | "/vehiculos";
+		RouteId(): "/" | "/asignaciones" | "/cambiar-contrasena" | "/conductores" | "/login" | "/operaciones" | "/operaciones/horas" | "/perfil" | "/recuperar-contrasena" | "/roles" | "/trayectos" | "/usuarios" | "/vehiculos";
 		RouteParams(): {
 			
 		};
@@ -40,12 +40,13 @@ declare module "$app/types" {
 			"/operaciones": Record<string, never>;
 			"/operaciones/horas": Record<string, never>;
 			"/perfil": Record<string, never>;
+			"/recuperar-contrasena": Record<string, never>;
 			"/roles": Record<string, never>;
 			"/trayectos": Record<string, never>;
 			"/usuarios": Record<string, never>;
 			"/vehiculos": Record<string, never>
 		};
-		Pathname(): "/" | "/asignaciones" | "/asignaciones/" | "/cambiar-contrasena" | "/cambiar-contrasena/" | "/conductores" | "/conductores/" | "/login" | "/login/" | "/operaciones" | "/operaciones/" | "/operaciones/horas" | "/operaciones/horas/" | "/perfil" | "/perfil/" | "/roles" | "/roles/" | "/trayectos" | "/trayectos/" | "/usuarios" | "/usuarios/" | "/vehiculos" | "/vehiculos/";
+		Pathname(): "/" | "/asignaciones" | "/asignaciones/" | "/cambiar-contrasena" | "/cambiar-contrasena/" | "/conductores" | "/conductores/" | "/login" | "/login/" | "/operaciones" | "/operaciones/" | "/operaciones/horas" | "/operaciones/horas/" | "/perfil" | "/perfil/" | "/recuperar-contrasena" | "/recuperar-contrasena/" | "/roles" | "/roles/" | "/trayectos" | "/trayectos/" | "/usuarios" | "/usuarios/" | "/vehiculos" | "/vehiculos/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): string & {};
 	}

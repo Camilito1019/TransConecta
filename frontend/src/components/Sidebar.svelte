@@ -1,6 +1,16 @@
 <script>
   import { goto } from '$app/navigation';
-  import { logout } from '../lib/stores.js';
+  import { logout, auth } from '../lib/stores.js';
+  import { 
+    tieneAccesoUsuarios, 
+    tieneAccesoVehiculos, 
+    tieneAccesoConductores, 
+    tieneAccesoTrayectos, 
+    tieneAccesoAsignaciones, 
+    tieneAccesoRoles,
+    puedeRegistrarHoras,
+    esHSEQ
+  } from '../lib/permisos.js';
 
   export let open = false;
 
@@ -8,49 +18,71 @@
     logout();
     goto('/login');
   }
+
+  // Reactivo: actualizar permisos cuando cambie el estado de auth
+  $: usuario = $auth.usuario;
+  $: mostrarDashboard = !esHSEQ();
+  $: mostrarUsuarios = tieneAccesoUsuarios();
+  $: mostrarRoles = tieneAccesoRoles();
+  $: mostrarVehiculos = tieneAccesoVehiculos();
+  $: mostrarConductores = tieneAccesoConductores();
+  $: mostrarTrayectos = tieneAccesoTrayectos();
+  $: mostrarAsignaciones = tieneAccesoAsignaciones();
+  $: mostrarRegistroHoras = puedeRegistrarHoras();
 </script>
 
 <aside class="sidebar" class:open class:collapsed={!open}>
   <nav class="nav-menu">
-    <div class="nav-section">
-      <h3>Dashboard</h3>
-      <ul>
-        <li>
-          <a href="/">
-            <span class="ms-icon nav-icon">home</span>
-            <span>Inicio</span>
-          </a>
-        </li>
-      </ul>
-    </div>
+    {#if mostrarDashboard}
+      <div class="nav-section">
+        <h3>Dashboard</h3>
+        <ul>
+          <li>
+            <a href="/">
+              <span class="ms-icon nav-icon">home</span>
+              <span>Inicio</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    {/if}
 
-    <div class="nav-section">
-      <h3>Gestión</h3>
-      <ul>
-        <li><a href="/usuarios"><span class="ms-icon nav-icon">group</span><span>Usuarios</span></a></li>
-        <li><a href="/roles"><span class="ms-icon nav-icon">admin_panel_settings</span><span>Roles</span></a></li>
-        <li><a href="/vehiculos"><span class="ms-icon nav-icon">local_shipping</span><span>Vehículos</span></a></li>
-        <li><a href="/conductores"><span class="ms-icon nav-icon">badge</span><span>Conductores</span></a></li>
-        <li><a href="/trayectos"><span class="ms-icon nav-icon">map</span><span>Trayectos</span></a></li>
-      </ul>
-    </div>
+    {#if mostrarUsuarios || mostrarRoles || mostrarVehiculos || mostrarConductores || mostrarTrayectos}
+      <div class="nav-section">
+        <h3>Gestión</h3>
+        <ul>
+          {#if mostrarUsuarios}
+            <li><a href="/usuarios"><span class="ms-icon nav-icon">group</span><span>Usuarios</span></a></li>
+          {/if}
+          {#if mostrarRoles}
+            <li><a href="/roles"><span class="ms-icon nav-icon">admin_panel_settings</span><span>Roles</span></a></li>
+          {/if}
+          {#if mostrarVehiculos}
+            <li><a href="/vehiculos"><span class="ms-icon nav-icon">local_shipping</span><span>Vehículos</span></a></li>
+          {/if}
+          {#if mostrarConductores}
+            <li><a href="/conductores"><span class="ms-icon nav-icon">badge</span><span>Conductores</span></a></li>
+          {/if}
+          {#if mostrarTrayectos}
+            <li><a href="/trayectos"><span class="ms-icon nav-icon">map</span><span>Trayectos</span></a></li>
+          {/if}
+        </ul>
+      </div>
+    {/if}
 
-    <div class="nav-section">
-      <h3>Operaciones</h3>
-      <ul>
-        <li><a href="/asignaciones"><span class="ms-icon nav-icon">route</span><span>Asignaciones</span></a></li>
-        <li><a href="/reportes"><span class="ms-icon nav-icon">insert_chart_outlined</span><span>Reportes</span></a></li>
-        <li><a href="/operaciones/horas"><span class="ms-icon nav-icon">schedule</span><span>Registro de Horas</span></a></li>
-      </ul>
-    </div>
-
-    <div class="nav-section">
-      <h3>Configuración</h3>
-      <ul>
-        <li><a href="/perfil"><span class="ms-icon nav-icon">account_circle</span><span>Mi Perfil</span></a></li>
-        <li><a href="/cambiar-contrasena"><span class="ms-icon nav-icon">vpn_key</span><span>Cambiar Contraseña</span></a></li>
-      </ul>
-    </div>
+    {#if mostrarAsignaciones || mostrarRegistroHoras}
+      <div class="nav-section">
+        <h3>Operaciones</h3>
+        <ul>
+          {#if mostrarAsignaciones}
+            <li><a href="/asignaciones"><span class="ms-icon nav-icon">route</span><span>Asignaciones</span></a></li>
+          {/if}
+          {#if mostrarRegistroHoras}
+            <li><a href="/operaciones/horas"><span class="ms-icon nav-icon">schedule</span><span>Registro de Horas</span></a></li>
+          {/if}
+        </ul>
+      </div>
+    {/if}
 
   </nav>
 </aside>

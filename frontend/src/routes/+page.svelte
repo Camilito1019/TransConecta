@@ -1,6 +1,9 @@
 <script>
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { auth } from '$lib/stores.js';
 	import { usuarioService, vehiculoService, conductorService, trayectoService } from '../lib/api/services.js';
+	import { authService } from '$lib/api/services.js';
 
 	let stats = {
 		usuarios: 0,
@@ -11,6 +14,21 @@
 	let loading = true;
 
 	onMount(async () => {
+		// Redirigir a HSEQ a su página correspondiente
+		const rolActual = $auth.usuario?.nombre_rol?.toUpperCase();
+		if (rolActual === 'HSEQ') {
+			goto('/operaciones/horas', { replaceState: true });
+			return;
+		}
+
+		// Verificar que haya token antes de cargar datos
+		const token = authService.getToken();
+		
+		if (!token) {
+			loading = false;
+			return;
+		}
+
 		try {
 			const [usuarios, vehiculos, conductores, trayectos] = await Promise.all([
 				usuarioService.listar(),

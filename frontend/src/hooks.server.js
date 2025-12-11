@@ -7,7 +7,7 @@ export async function handle({ event, resolve }) {
   const token = event.cookies.get('auth_token');
 
   // Rutas públicas que no requieren autenticación
-  const publicRoutes = ['/login'];
+  const publicRoutes = ['/login', '/recuperar-contrasena'];
 
   // Si la ruta no es pública y no hay token, redirigir a login
   if (!publicRoutes.includes(url.pathname) && !token && !building) {

@@ -7,12 +7,55 @@
 	let correo = '';
 	let contraseña = '';
 	let loading = false;
+	let mostrarContraseña = false;
 	export let form;
+
+	function irARecuperarContrasena() {
+		console.log('🔄 Navegando a recuperar contraseña...');
+		goto('/recuperar-contrasena');
+	}
 
 	function handleKeydown(e) {
 		if (e.key === 'Enter' && correo && contraseña && !loading) {
 			document.querySelector('form').requestSubmit();
 		}
+	}
+
+	function toggleMostrarContraseña() {
+		mostrarContraseña = !mostrarContraseña;
+	}
+
+	// Usuarios de prueba
+	const usuariosPrueba = [
+		{
+			nombre: 'Mauricio Fernández',
+			rol: 'Coordinador',
+			correo: 'mauriciofernandez@gmail.com',
+			contraseña: 'Maufz_2025$2'
+		},
+		{
+			nombre: 'Mayra Alejandra Hoyos',
+			rol: 'HSEQ',
+			correo: 'mayraalejandrahoyos@gmail.com',
+			contraseña: 'MayraH@2025!'
+		},
+		{
+			nombre: 'Wilfran Camilo Castellanos',
+			rol: 'Administrador',
+			correo: 'wilfrancamilocastellanos@gmail.com',
+			contraseña: 'WccAdmin#92'
+		},
+		{
+			nombre: 'Yeison Ramírez',
+			rol: 'Coordinador',
+			correo: 'jasonramirez@gmail.com',
+			contraseña: 'JasonR*884'
+		}
+	];
+
+	function seleccionarUsuario(usuario) {
+		correo = usuario.correo;
+		contraseña = usuario.contraseña;
 	}
 
 	$: if (form?.error) {
@@ -23,6 +66,8 @@
 <svelte:head>
 	<title>Login - TransConecta</title>
 	<meta name="description" content="Inicia sesión en TransConecta" />
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" />
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </svelte:head>
 
 <div class="login-shell">
@@ -43,6 +88,11 @@
 				loading = true;
 				return async ({ result, update }) => {
 					loading = false;
+					console.log('🔍 Login result:', result);
+					console.log('🔍 Result data:', result.data);
+					console.log('🔍 Usuario:', result.data?.usuario);
+					console.log('🔍 Requiere cambio:', result.data?.usuario?.requiere_cambio_contrasena);
+					
 					if (result.type === 'success' && result.data?.success !== false) {
 						const token = result.data?.token ? String(result.data.token) : null;
 						if (token) {
@@ -53,13 +103,32 @@
 								token,
 								isAuthenticated: true,
 							}));
-							if (result.data?.usuario) {
-								setAuthUsuario(result.data.usuario);
-							}
-							addNotificacion('¡Bienvenido a TransConecta!', 'success');
+						if (result.data?.usuario) {
+							setAuthUsuario(result.data.usuario);
+						}
+
+						// Verificar si requiere cambio de contraseña
+						if (result.data?.usuario?.requiere_cambio_contrasena) {
+							console.log('✅ Usuario requiere cambio de contraseña, redirigiendo...');
+							addNotificacion('Debes cambiar tu contraseña antes de continuar', 'warning');
 							await update();
-							const target = result.data?.location ? String(result.data.location) : '/';
-							await goto(target, { replaceState: true });
+							await goto('/cambiar-contrasena', { replaceState: true });
+							return;
+						}
+
+						console.log('✅ Login normal, redirigiendo al dashboard...');
+						addNotificacion('¡Bienvenido a TransConecta!', 'success');
+						await update();
+						
+						// Redirigir según el rol
+						let target = '/';
+						if (result.data?.usuario?.nombre_rol?.toUpperCase() === 'HSEQ') {
+							target = '/operaciones/horas';
+						} else if (result.data?.location) {
+							target = String(result.data.location);
+						}
+						
+						await goto(target, { replaceState: true });
 						} else {
 							addNotificacion('No se recibió token del servidor', 'error');
 						}
@@ -82,12 +151,13 @@
 						required
 						disabled={loading}
 					/>
-				</label>
+			</label>
 
-				<label class="form-field">
-					<span>Contraseña</span>
+			<label class="form-field">
+				<span>Contraseña</span>
+				<div class="password-wrapper">
 					<input
-						type="password"
+						type={mostrarContraseña ? 'text' : 'password'}
 						id="contraseña"
 						name="contraseña"
 						bind:value={contraseña}
@@ -96,10 +166,18 @@
 						disabled={loading}
 						on:keydown={handleKeydown}
 					/>
-				</label>
-			</div>
-
-			<button
+					<button
+						type="button"
+						class="toggle-password"
+						on:click={toggleMostrarContraseña}
+						aria-label={mostrarContraseña ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+						disabled={loading}
+					>
+						<span class="ms-icon">{mostrarContraseña ? 'visibility_off' : 'visibility'}</span>
+					</button>
+				</div>
+			</label>
+		</div>			<button
 				type="submit"
 				class="login-btn"
 				disabled={loading || !correo || !contraseña}
@@ -108,20 +186,66 @@
 			</button>
 
 			<div class="form-footer">
-				<a href="/cambio-contrasena">¿Olvidaste tu contraseña?</a>
+				<button 
+					type="button" 
+					class="link-button"
+					on:click={irARecuperarContrasena}
+				>
+					¿Olvidaste tu contraseña?
+				</button>
 			</div>
 		</form>
 
 		<div class="login-footer">
-			<p>Acceso de prueba</p>
-			<div class="pill">correo: admin@example.com</div>
-			<div class="pill">contraseña: password123</div>
+			<div class="footer-header">
+				<span class="ms-icon">group</span>
+				<p class="footer-title">Usuarios de prueba</p>
+			</div>
+			<p class="footer-subtitle">Haz clic en un usuario para autocompletar las credenciales</p>
+			<div class="users-grid">
+				{#each usuariosPrueba as usuario}
+					<button 
+						type="button"
+						class="user-card" 
+						on:click={() => seleccionarUsuario(usuario)}
+						disabled={loading}
+						title="Clic para usar este usuario"
+					>
+						<div class="user-avatar">
+							<span class="ms-icon">person</span>
+						</div>
+						<div class="user-info">
+							<span class="user-nombre">{usuario.nombre}</span>
+							<span class="user-rol">
+								<span class="role-badge">{usuario.rol}</span>
+							</span>
+						</div>
+						<span class="ms-icon arrow">arrow_forward</span>
+					</button>
+				{/each}
+			</div>
 		</div>
 	</section>
 </div>
 
 <style>
-	@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+	:global(.ms-icon) {
+		font-family: 'Material Symbols Outlined';
+		font-weight: normal;
+		font-style: normal;
+		font-size: 24px;
+		line-height: 1;
+		letter-spacing: normal;
+		text-transform: none;
+		display: inline-block;
+		white-space: nowrap;
+		word-wrap: normal;
+		direction: ltr;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-rendering: optimizeLegibility;
+		font-feature-settings: 'liga';
+	}
 
 	:global(html),
 	:global(body) {
@@ -280,6 +404,46 @@
 		cursor: not-allowed;
 	}
 
+	.password-wrapper {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+
+	.password-wrapper input {
+		width: 100%;
+		padding-right: 48px;
+	}
+
+	.toggle-password {
+		position: absolute;
+		right: 4px;
+		background: transparent;
+		border: none;
+		padding: 8px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 8px;
+		transition: background 0.2s ease;
+		color: #666;
+	}
+
+	.toggle-password:hover:not(:disabled) {
+		background: #f0f0f2;
+		color: #333;
+	}
+
+	.toggle-password:disabled {
+		cursor: not-allowed;
+		opacity: 0.5;
+	}
+
+	.toggle-password .ms-icon {
+		font-size: 20px;
+	}
+
 	.login-btn {
 		padding: 14px 16px;
 		border: none;
@@ -315,46 +479,185 @@
 		margin-top: 4px;
 	}
 
-	.form-footer a {
+	.link-button {
 		font-size: 13px;
 		color: #a33b36;
-		text-decoration: none;
+		background: none;
+		border: none;
 		font-weight: 600;
+		cursor: pointer;
+		padding: 0;
+		font-family: inherit;
+		transition: opacity 0.2s;
 	}
 
-	.form-footer a:hover {
+	.link-button:hover {
 		text-decoration: underline;
+		opacity: 0.8;
 	}
 
 	.login-footer {
-		margin-top: 22px;
-		padding: 16px;
-		background: #fbfbfc;
-		border: 1px dashed #e6e6e9;
-		border-radius: 14px;
-		display: grid;
-		gap: 10px;
+		margin-top: 24px;
+		padding: 20px;
+		background: linear-gradient(135deg, #fbfbfc 0%, #f5f5f7 100%);
+		border: 1.5px solid #e6e6e9;
+		border-radius: 16px;
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+	}
+
+	.footer-header {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		margin-bottom: 4px;
+	}
+
+	.footer-header .ms-icon {
+		font-size: 20px;
+		color: #e3473c;
+	}
+
+	.footer-title {
+		margin: 0;
+		font-weight: 700;
+		font-size: 14px;
+		color: #2a2a2a;
+		letter-spacing: 0.02em;
+	}
+
+	.footer-subtitle {
+		margin: 0 0 8px 0;
+		font-size: 12px;
+		color: #888;
 		text-align: center;
 	}
 
-	.login-footer p {
-		margin: 0;
-		font-weight: 700;
-		color: #404040;
-		letter-spacing: 0.01em;
+	.users-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 10px;
 	}
 
-	.pill {
-		display: inline-flex;
-		justify-content: center;
+	.user-card {
+		display: flex;
 		align-items: center;
-		padding: 10px 12px;
+		justify-content: space-between;
+		padding: 14px;
+		border: 2px solid #e6e6e9;
 		border-radius: 12px;
-		background: #fff1f1;
-		color: #a33b36;
-		font-family: 'Manrope', monospace;
-		font-size: 13px;
-		border: 1px solid #f3d4d4;
+		background: #ffffff;
+		cursor: pointer;
+		transition: all 0.25s ease;
+		text-align: left;
+		gap: 12px;
+		position: relative;
+		overflow: hidden;
+	}
+
+	.user-card::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(135deg, rgba(227, 71, 60, 0.05), rgba(194, 54, 48, 0.05));
+		opacity: 0;
+		transition: opacity 0.25s ease;
+		z-index: 0;
+	}
+
+	.user-card:hover:not(:disabled)::before {
+		opacity: 1;
+	}
+
+	.user-card:hover:not(:disabled) {
+		border-color: #e3473c;
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px rgba(227, 71, 60, 0.15);
+	}
+
+	.user-card:active:not(:disabled) {
+		transform: translateY(0);
+		box-shadow: 0 2px 8px rgba(227, 71, 60, 0.1);
+	}
+
+	.user-card:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.user-card > * {
+		position: relative;
+		z-index: 1;
+	}
+
+	.user-avatar {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		background: linear-gradient(135deg, #e3473c, #c23630);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		box-shadow: 0 2px 8px rgba(227, 71, 60, 0.2);
+	}
+
+	.user-avatar .ms-icon {
+		font-size: 24px;
+		color: white;
+	}
+
+	.user-info {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		flex: 1;
+		min-width: 0;
+	}
+
+	.user-nombre {
+		font-size: 14px;
+		font-weight: 600;
+		color: #2a2a2a;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		line-height: 1.2;
+	}
+
+	.user-rol {
+		display: flex;
+		align-items: center;
+	}
+
+	.role-badge {
+		font-size: 10px;
+		font-weight: 600;
+		color: #e3473c;
+		background: rgba(227, 71, 60, 0.1);
+		padding: 3px 8px;
+		border-radius: 4px;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		line-height: 1;
+	}
+
+	.user-card .arrow {
+		font-size: 20px;
+		color: #ccc;
+		transition: all 0.25s ease;
+		flex-shrink: 0;
+	}
+
+	.user-card:hover:not(:disabled) .arrow {
+		color: #e3473c;
+		transform: translateX(4px) scale(1.1);
 	}
 
 	@media (max-width: 540px) {
@@ -370,7 +673,7 @@
 			font-size: 14px;
 		}
 
-		.login-footer {
+		.users-grid {
 			grid-template-columns: 1fr;
 		}
 	}

@@ -30,11 +30,22 @@
     try {
       const maybeId = $auth?.usuario?.id_usuario;
       await usuarioService.cambiarContraseña(contrasena_actual, contrasena_nueva, maybeId);
-      addNotificacion('Contraseña actualizada', 'success');
+      
+      // Actualizar el store para quitar el flag de cambio obligatorio
+      auth.update((state) => ({
+        ...state,
+        usuario: state.usuario ? { ...state.usuario, requiere_cambio_contrasena: false } : null
+      }));
+      
+      addNotificacion('Contraseña actualizada exitosamente', 'success');
       contrasena_actual = '';
       contrasena_nueva = '';
       confirmar = '';
-      goto('/');
+      
+      // Esperar un poco antes de redirigir para que el usuario vea el mensaje
+      setTimeout(() => {
+        goto('/');
+      }, 1500);
     } catch (err) {
       addNotificacion(err.message || 'Error al cambiar la contraseña', 'error');
     } finally {
@@ -55,8 +66,24 @@
     <header class="card-head">
       <p class="eyebrow">Seguridad</p>
       <h1>Cambiar contraseña</h1>
-      <p class="subtitle">Actualiza tu clave con el mismo estilo del login.</p>
+      {#if $auth?.usuario?.requiere_cambio_contrasena}
+        <p class="subtitle" style="color: #e3473c; font-weight: 600;">
+          ⚠️ Debes cambiar tu contraseña temporal antes de continuar
+        </p>
+      {:else}
+        <p class="subtitle">Actualiza tu clave con el mismo estilo del login.</p>
+      {/if}
     </header>
+
+    {#if $auth?.usuario?.requiere_cambio_contrasena}
+      <div class="warning-box">
+        <span class="ms-icon" style="font-size: 24px;">info</span>
+        <div>
+          <strong>Primera vez en el sistema</strong>
+          <p>Por seguridad, debes cambiar tu contraseña temporal por una personalizada.</p>
+        </div>
+      </div>
+    {/if}
 
     <form class="form" on:submit|preventDefault={handleSubmit}>
       <label class="field">
@@ -176,6 +203,34 @@
     font-size: 18px;
     padding: 4px 6px;
     color: #c23630;
+  }
+
+  .warning-box {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .warning-box .ms-icon {
+    color: #ffc107;
+    flex-shrink: 0;
+  }
+
+  .warning-box strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #856404;
+  }
+
+  .warning-box p {
+    margin: 0;
+    color: #856404;
+    font-size: 14px;
   }
 
   .primary {

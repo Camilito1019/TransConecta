@@ -2,11 +2,17 @@
 	import { onMount } from 'svelte';
 	import { trayectos, addNotificacion } from '$lib/stores.js';
 	import { trayectoService } from '$lib/api/services.js';
+	import { puedeCrear, puedeEditar, puedeEliminar } from '$lib/permisos.js';
 
 	let mostrarFormulario = false;
 	let editandoId = null;
 	let confirmAction = { open: false, id: null, label: '' };
 	let formData = { origen: '', destino: '', distancia_km: '', tiempo_estimado: '' };
+
+	// Permisos
+	$: puedeCrearTrayectos = puedeCrear();
+	$: puedeEditarTrayectos = puedeEditar();
+	$: puedeEliminarTrayectos = puedeEliminar();
 
 	onMount(async () => {
 		await cargarTrayectos();
@@ -111,7 +117,9 @@
 			</div>
 		</div>
 		<div class="hero-actions">
-			<button class="primary" on:click={abrirFormulario}>+ Nuevo trayecto</button>
+			{#if puedeCrearTrayectos}
+				<button class="primary" on:click={abrirFormulario}>+ Nuevo trayecto</button>
+			{/if}
 		</div>
 	</section>
 
@@ -184,12 +192,16 @@
 								<td>{r.origen}</td>
 								<td>{r.destino}</td>
 								<td>{r.distancia_km} km</td>
-								<td>{r.tiempo_estimado} h</td>
-								<td class="actions">
+							<td>{r.tiempo_estimado} h</td>
+							<td class="actions">
+								{#if puedeEditarTrayectos}
 									<button class="ghost" on:click={() => editarTrayecto(r)}>Editar</button>
+								{/if}
+								{#if puedeEliminarTrayectos}
 									<button class="outline" on:click={() => solicitarEliminar(r)}>Eliminar</button>
-								</td>
-							</tr>
+								{/if}
+							</td>
+						</tr>
 						{/each}
 					</tbody>
 				</table>

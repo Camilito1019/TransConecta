@@ -2,11 +2,15 @@
 	import { onMount } from 'svelte';
 	import { roles, addNotificacion } from '$lib/stores.js';
 	import { rolService } from '$lib/api/services.js';
+	import { esAdministrador } from '$lib/permisos.js';
 
 	let mostrarFormulario = false;
 	let editandoId = null;
 	let confirmDelete = { open: false, id: null, nombre: '' };
 	let formData = { nombre_rol: '', descripcion: '' };
+
+	// Solo administrador puede gestionar roles
+	$: soloAdmin = esAdministrador();
 
 	onMount(async () => {
 		await cargarRoles();
@@ -88,11 +92,13 @@
 			</div>
 		</div>
 		<div class="hero-actions">
-			<button class="primary" on:click={abrirFormulario}>+ Nuevo rol</button>
+			{#if soloAdmin}
+				<button class="primary" on:click={abrirFormulario}>+ Nuevo rol</button>
+			{/if}
 		</div>
 	</section>
 
-	{#if mostrarFormulario}
+	{#if mostrarFormulario && soloAdmin}
 		<section class="panel">
 			<div class="panel-head">
 				<div>
@@ -151,8 +157,10 @@
 								<td>{rol.nombre_rol}</td>
 								<td>{rol.descripcion || '—'}</td>
 								<td class="actions">
-									<button class="ghost" on:click={() => editarRol(rol)}>Editar</button>
-									<button class="danger" on:click={() => (confirmDelete = { open: true, id: rol.id_rol, nombre: rol.nombre_rol })}>Eliminar</button>
+									{#if soloAdmin}
+										<button class="ghost" on:click={() => editarRol(rol)}>Editar</button>
+										<button class="danger" on:click={() => (confirmDelete = { open: true, id: rol.id_rol, nombre: rol.nombre_rol })}>Eliminar</button>
+									{/if}
 								</td>
 							</tr>
 						{/each}
