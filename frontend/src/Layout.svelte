@@ -35,7 +35,7 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background-color: #f5f5f5;
+    background-color: var(--tc-bg);
   }
 
   .main-container {
@@ -48,6 +48,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 20px;
+    background-color: var(--tc-bg);
   }
 
   .content.full-width {

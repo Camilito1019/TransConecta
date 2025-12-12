@@ -127,64 +127,61 @@
 </div>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap');
-
   .profile-shell {
     position: relative;
     min-height: calc(100vh - 60px);
     padding: 24px 16px 36px;
     display: grid;
     place-items: center;
-    background: #f7f7f8;
+    background: var(--tc-bg);
     overflow: hidden;
-    font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    color: #1f1f1f;
+    color: var(--tc-text);
   }
 
   .bg { position: absolute; border-radius: 999px; filter: blur(70px); opacity: 0.4; }
-  .shape-a { width: 360px; height: 360px; background: #f6c3c3; top: -120px; left: -80px; }
-  .shape-b { width: 320px; height: 320px; background: #ffd8cf; bottom: -140px; right: -60px; }
+  .shape-a { width: 360px; height: 360px; background: color-mix(in srgb, var(--tc-accent) 34%, transparent); top: -120px; left: -80px; }
+  .shape-b { width: 320px; height: 320px; background: color-mix(in srgb, var(--tc-accent-2) 28%, transparent); bottom: -140px; right: -60px; }
 
   .profile-card {
     position: relative;
     z-index: 1;
     width: min(900px, 100%);
-    background: #ffffff;
+    background: var(--tc-surface);
     border-radius: 18px;
-    box-shadow: 0 20px 80px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--tc-shadow-strong);
     padding: 26px 24px 22px;
-    border: 1px solid #f0f0f0;
+    border: 1px solid var(--tc-border);
   }
 
   .profile-head { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; }
   .avatar {
     width: 70px; height: 70px; border-radius: 18px;
-    background: linear-gradient(135deg, #e3473c, #c23630);
-    color: #fff; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--tc-accent), var(--tc-accent-2));
+    color: var(--tc-on-accent); display: grid; place-items: center;
     font-size: 22px; font-weight: 800;
-    box-shadow: 0 14px 34px rgba(227, 71, 60, 0.28);
-    border: 1px solid #f4d5d2;
+    box-shadow: 0 14px 34px color-mix(in srgb, var(--tc-accent), transparent 72%);
+    border: 1px solid var(--tc-border-strong);
   }
   .head-text h1 { margin: 4px 0 4px 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
-  .eyebrow { margin: 0 0 2px 0; padding: 6px 10px; background: #fff1f1; color: #a33b36; border-radius: 999px; font-size: 11px; letter-spacing: 0.1em; font-weight: 800; display: inline-block; }
-  .lede { margin: 0; color: #4f4f4f; font-size: 14px; }
+  .eyebrow { margin: 0 0 2px 0; padding: 6px 10px; background: color-mix(in srgb, var(--tc-accent) 10%, var(--tc-surface)); color: color-mix(in srgb, var(--tc-accent-2), var(--tc-text) 40%); border-radius: 999px; font-size: 11px; letter-spacing: 0.1em; font-weight: 800; display: inline-block; }
+  .lede { margin: 0; color: var(--tc-text-muted); font-size: 14px; }
   .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .chip { padding: 8px 12px; border-radius: 12px; background: #fff7f6; border: 1px solid #f4d5d2; font-weight: 700; color: #a33b36; font-size: 12px; }
-  .chip.soft { background: #fafafa; color: #3f3f46; border-color: #ededed; }
-  .chip.state { background: #f2fcf6; color: #1d5a39; border-color: #cce8d8; }
+  .chip { padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--tc-accent) 7%, var(--tc-surface)); border: 1px solid var(--tc-border-strong); font-weight: 700; color: color-mix(in srgb, var(--tc-accent-2), var(--tc-text) 40%); font-size: 12px; }
+  .chip.soft { background: color-mix(in srgb, var(--tc-surface), var(--tc-bg) 40%); color: var(--tc-text); border-color: var(--tc-border); }
+  .chip.state { background: var(--tc-success-bg); color: var(--tc-success-text); border-color: var(--tc-success-border); }
 
   .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 12px; }
-  .field { display: grid; gap: 6px; font-size: 14px; color: #3f3f46; }
+  .field { display: grid; gap: 6px; font-size: 14px; color: var(--tc-text); }
   .field input {
     padding: 13px 12px;
     border-radius: 12px;
-    border: 1.5px solid #e6e6e9;
-    background: #fbfbfc;
+    border: 1.5px solid var(--tc-border);
+    background: color-mix(in srgb, var(--tc-surface), var(--tc-bg) 35%);
     font-size: 15px;
-    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
     font-family: inherit;
   }
-  .field input:focus { outline: none; border-color: #e3473c; box-shadow: 0 10px 28px rgba(227,71,60,0.12); background: #fff; }
+  .field input:focus { outline: none; border-color: var(--tc-accent); box-shadow: 0 10px 28px color-mix(in srgb, var(--tc-accent), transparent 86%); background: var(--tc-surface); }
 
   .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
   .primary {
@@ -192,17 +189,17 @@
     padding: 12px 14px;
     font-weight: 800;
     cursor: pointer;
-    border: 1px solid #f4d5d2;
-    background: linear-gradient(135deg, #e3473c, #c23630);
-    color: #fff;
-    box-shadow: 0 12px 26px rgba(227,71,60,0.25);
+    border: 1px solid var(--tc-border-strong);
+    background: linear-gradient(135deg, var(--tc-accent), var(--tc-accent-2));
+    color: var(--tc-on-accent);
+    box-shadow: 0 12px 26px color-mix(in srgb, var(--tc-accent), transparent 74%);
     transition: transform 0.12s ease, box-shadow 0.18s ease;
   }
   .primary:hover { transform: translateY(-1px); }
   .primary:disabled { opacity: 0.7; cursor: not-allowed; }
 
-  .loading { display: grid; place-items: center; gap: 10px; padding: 40px 0; color: #4a4a4a; }
-  .spinner { width: 32px; height: 32px; border-radius: 50%; border: 4px solid #ffe0db; border-top-color: #e3473c; animation: spin 0.8s linear infinite; }
+  .loading { display: grid; place-items: center; gap: 10px; padding: 40px 0; color: var(--tc-text-muted); }
+  .spinner { width: 32px; height: 32px; border-radius: 50%; border: 4px solid color-mix(in srgb, var(--tc-accent) 18%, var(--tc-surface-2)); border-top-color: var(--tc-accent); animation: spin 0.8s linear infinite; }
   @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
 
   @media (max-width: 640px) {

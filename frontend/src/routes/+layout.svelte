@@ -232,7 +232,7 @@
 		flex-direction: column;
 		width: 100%;
 		height: 100vh;
-		background-color: #f5f5f5;
+		background-color: var(--tc-bg);
 	}
 
 	.main-container {
@@ -248,7 +248,7 @@
 		overflow-x: hidden;
 		padding: 20px;
 		width: 100%;
-		background-color: #f5f5f5;
+		background-color: var(--tc-bg);
 	}
 
 	.content.full-width {

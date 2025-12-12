@@ -66,7 +66,6 @@
 <svelte:head>
 	<title>Login - TransConecta</title>
 	<meta name="description" content="Inicia sesión en TransConecta" />
-	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" />
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </svelte:head>
 
@@ -253,9 +252,9 @@
 		height: 100%;
 		margin: 0;
 		padding: 0;
-		font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
-		background: #f7f7f8;
-		color: #1f1f1f;
+		font-family: var(--tc-font);
+		background: var(--tc-bg);
+		color: var(--tc-text);
 	}
 
 	.login-shell {
@@ -278,7 +277,7 @@
 	.shape-a {
 		width: 360px;
 		height: 360px;
-		background: #f6c3c3;
+		background: color-mix(in srgb, var(--tc-accent) 35%, transparent);
 		top: -120px;
 		left: -80px;
 	}
@@ -286,7 +285,7 @@
 	.shape-b {
 		width: 320px;
 		height: 320px;
-		background: #ffd8cf;
+		background: color-mix(in srgb, var(--tc-accent-2) 28%, transparent);
 		bottom: -140px;
 		right: -60px;
 	}
@@ -296,11 +295,11 @@
 		z-index: 1;
 		width: 100%;
 		max-width: 460px;
-		background: #ffffff;
+		background: var(--tc-surface);
 		border-radius: 18px;
-		box-shadow: 0 20px 80px rgba(0, 0, 0, 0.08);
+		box-shadow: var(--tc-shadow-strong);
 		padding: 36px 32px;
-		border: 1px solid #f0f0f0;
+		border: 1px solid var(--tc-border);
 		animation: fadeIn 0.5s ease;
 	}
 
@@ -328,8 +327,8 @@
 		font-size: 12px;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
-		color: #a33b36;
-		background: #fff1f1;
+		color: var(--tc-accent-2);
+		background: color-mix(in srgb, var(--tc-accent) 14%, transparent);
 		border-radius: 999px;
 		width: fit-content;
 		font-weight: 700;
@@ -340,13 +339,13 @@
 		font-size: 32px;
 		font-weight: 800;
 		letter-spacing: -0.02em;
-		color: #2a2a2a;
+		color: var(--tc-text);
 	}
 
 	.subtitle {
 		margin: 0;
 		font-size: 15px;
-		color: #555;
+		color: var(--tc-text-muted);
 	}
 
 	form {
@@ -366,7 +365,7 @@
 		flex-direction: column;
 		gap: 8px;
 		font-size: 14px;
-		color: #1f1f1f;
+		color: var(--tc-text);
 		font-weight: 600;
 	}
 
@@ -374,15 +373,15 @@
 		display: flex;
 		align-items: center;
 		gap: 6px;
-		color: #444;
+		color: var(--tc-text-muted);
 		letter-spacing: 0.01em;
 	}
 
 	.form-field input {
 		padding: 14px 14px;
 		border-radius: 12px;
-		border: 1.5px solid #e6e6e9;
-		background: #fbfbfc;
+		border: 1.5px solid var(--tc-border);
+		background: var(--tc-surface-2);
 		font-size: 15px;
 		transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 		font-family: inherit;
@@ -390,17 +389,17 @@
 
 	.form-field input:focus {
 		outline: none;
-		border-color: #e3473c;
-		box-shadow: 0 10px 30px rgba(227, 71, 60, 0.12);
-		background: #ffffff;
+		border-color: var(--tc-accent);
+		box-shadow: 0 10px 30px color-mix(in srgb, var(--tc-accent) 22%, transparent);
+		background: var(--tc-surface);
 	}
 
 	.form-field input::placeholder {
-		color: #a0a0a5;
+		color: color-mix(in srgb, var(--tc-text-muted), transparent 10%);
 	}
 
 	.form-field input:disabled {
-		background: #f2f2f4;
+		background: color-mix(in srgb, var(--tc-border) 20%, var(--tc-surface));
 		cursor: not-allowed;
 	}
 
@@ -427,12 +426,12 @@
 		justify-content: center;
 		border-radius: 8px;
 		transition: background 0.2s ease;
-		color: #666;
+		color: var(--tc-text-muted);
 	}
 
 	.toggle-password:hover:not(:disabled) {
-		background: #f0f0f2;
-		color: #333;
+		background: color-mix(in srgb, var(--tc-border) 35%, transparent);
+		color: var(--tc-text);
 	}
 
 	.toggle-password:disabled {
@@ -448,24 +447,24 @@
 		padding: 14px 16px;
 		border: none;
 		border-radius: 12px;
-		background: linear-gradient(120deg, #e3473c 0%, #c23630 100%);
-		color: #ffffff;
+		background: linear-gradient(120deg, var(--tc-accent) 0%, var(--tc-accent-2) 100%);
+		color: var(--tc-on-accent);
 		font-size: 15px;
 		font-weight: 700;
 		cursor: pointer;
 		transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-		box-shadow: 0 14px 30px rgba(227, 71, 60, 0.25);
+		box-shadow: 0 14px 30px color-mix(in srgb, var(--tc-accent) 30%, transparent);
 		letter-spacing: 0.01em;
 	}
 
 	.login-btn:hover:not(:disabled) {
 		transform: translateY(-1px);
-		box-shadow: 0 16px 36px rgba(227, 71, 60, 0.32);
+		box-shadow: 0 16px 36px color-mix(in srgb, var(--tc-accent) 38%, transparent);
 	}
 
 	.login-btn:active:not(:disabled) {
 		transform: translateY(0);
-		box-shadow: 0 10px 28px rgba(227, 71, 60, 0.22);
+		box-shadow: 0 10px 28px color-mix(in srgb, var(--tc-accent) 26%, transparent);
 	}
 
 	.login-btn:disabled {
@@ -481,7 +480,7 @@
 
 	.link-button {
 		font-size: 13px;
-		color: #a33b36;
+		color: var(--tc-accent-2);
 		background: none;
 		border: none;
 		font-weight: 600;
@@ -499,13 +498,13 @@
 	.login-footer {
 		margin-top: 24px;
 		padding: 20px;
-		background: linear-gradient(135deg, #fbfbfc 0%, #f5f5f7 100%);
-		border: 1.5px solid #e6e6e9;
+		background: linear-gradient(135deg, var(--tc-surface-2) 0%, var(--tc-surface-3) 100%);
+		border: 1.5px solid var(--tc-border);
 		border-radius: 16px;
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+		box-shadow: var(--tc-shadow);
 	}
 
 	.footer-header {
@@ -518,21 +517,21 @@
 
 	.footer-header .ms-icon {
 		font-size: 20px;
-		color: #e3473c;
+		color: var(--tc-accent);
 	}
 
 	.footer-title {
 		margin: 0;
 		font-weight: 700;
 		font-size: 14px;
-		color: #2a2a2a;
+		color: var(--tc-text);
 		letter-spacing: 0.02em;
 	}
 
 	.footer-subtitle {
 		margin: 0 0 8px 0;
 		font-size: 12px;
-		color: #888;
+		color: var(--tc-text-muted);
 		text-align: center;
 	}
 
@@ -547,9 +546,9 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 14px;
-		border: 2px solid #e6e6e9;
+		border: 2px solid var(--tc-border);
 		border-radius: 12px;
-		background: #ffffff;
+		background: var(--tc-surface);
 		cursor: pointer;
 		transition: all 0.25s ease;
 		text-align: left;
@@ -565,7 +564,11 @@
 		left: 0;
 		width: 100%;
 		height: 100%;
-		background: linear-gradient(135deg, rgba(227, 71, 60, 0.05), rgba(194, 54, 48, 0.05));
+		background: linear-gradient(
+			135deg,
+			color-mix(in srgb, var(--tc-accent) 10%, transparent),
+			color-mix(in srgb, var(--tc-accent-2) 10%, transparent)
+		);
 		opacity: 0;
 		transition: opacity 0.25s ease;
 		z-index: 0;
@@ -576,14 +579,14 @@
 	}
 
 	.user-card:hover:not(:disabled) {
-		border-color: #e3473c;
+		border-color: var(--tc-accent);
 		transform: translateY(-2px);
-		box-shadow: 0 6px 20px rgba(227, 71, 60, 0.15);
+		box-shadow: 0 6px 20px color-mix(in srgb, var(--tc-accent) 20%, transparent);
 	}
 
 	.user-card:active:not(:disabled) {
 		transform: translateY(0);
-		box-shadow: 0 2px 8px rgba(227, 71, 60, 0.1);
+		box-shadow: 0 2px 8px color-mix(in srgb, var(--tc-accent) 16%, transparent);
 	}
 
 	.user-card:disabled {
@@ -600,17 +603,17 @@
 		width: 40px;
 		height: 40px;
 		border-radius: 50%;
-		background: linear-gradient(135deg, #e3473c, #c23630);
+		background: linear-gradient(135deg, var(--tc-accent), var(--tc-accent-2));
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		flex-shrink: 0;
-		box-shadow: 0 2px 8px rgba(227, 71, 60, 0.2);
+		box-shadow: 0 2px 8px color-mix(in srgb, var(--tc-accent) 25%, transparent);
 	}
 
 	.user-avatar .ms-icon {
 		font-size: 24px;
-		color: white;
+		color: var(--tc-on-accent);
 	}
 
 	.user-info {
@@ -624,7 +627,7 @@
 	.user-nombre {
 		font-size: 14px;
 		font-weight: 600;
-		color: #2a2a2a;
+		color: var(--tc-text);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -639,8 +642,8 @@
 	.role-badge {
 		font-size: 10px;
 		font-weight: 600;
-		color: #e3473c;
-		background: rgba(227, 71, 60, 0.1);
+		color: var(--tc-accent);
+		background: color-mix(in srgb, var(--tc-accent) 14%, transparent);
 		padding: 3px 8px;
 		border-radius: 4px;
 		text-transform: uppercase;
@@ -650,13 +653,13 @@
 
 	.user-card .arrow {
 		font-size: 20px;
-		color: #ccc;
+		color: color-mix(in srgb, var(--tc-text-muted) 70%, transparent);
 		transition: all 0.25s ease;
 		flex-shrink: 0;
 	}
 
 	.user-card:hover:not(:disabled) .arrow {
-		color: #e3473c;
+		color: var(--tc-accent);
 		transform: translateX(4px) scale(1.1);
 	}
 

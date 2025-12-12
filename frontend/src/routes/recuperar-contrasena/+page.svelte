@@ -152,7 +152,6 @@
 
 <svelte:head>
 	<title>Recuperar Contraseña - TransConecta</title>
-	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </svelte:head>
 
@@ -340,8 +339,8 @@
 		justify-content: center;
 		padding: 32px 18px;
 		overflow: hidden;
-		background: #f7f7f8;
-		font-family: 'Manrope', sans-serif;
+		background: var(--tc-bg);
+		font-family: var(--tc-font);
 	}
 
 	.shape {
@@ -354,7 +353,7 @@
 	.shape-a {
 		width: 360px;
 		height: 360px;
-		background: #f6c3c3;
+		background: color-mix(in srgb, var(--tc-accent) 35%, transparent);
 		top: -120px;
 		left: -80px;
 	}
@@ -362,7 +361,7 @@
 	.shape-b {
 		width: 320px;
 		height: 320px;
-		background: #ffd8cf;
+		background: color-mix(in srgb, var(--tc-accent-2) 28%, transparent);
 		bottom: -140px;
 		right: -100px;
 	}
@@ -371,10 +370,11 @@
 		position: relative;
 		width: 100%;
 		max-width: 480px;
-		background: #ffffff;
+		background: var(--tc-surface);
 		border-radius: 20px;
-		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+		box-shadow: var(--tc-shadow-strong);
 		padding: 32px;
+		border: 1px solid var(--tc-border);
 	}
 
 	.recovery-header {
@@ -387,7 +387,7 @@
 		position: absolute;
 		left: 0;
 		top: 0;
-		background: #f5f5f5;
+		background: var(--tc-surface-2);
 		border: none;
 		border-radius: 8px;
 		padding: 8px;
@@ -396,23 +396,25 @@
 		align-items: center;
 		justify-content: center;
 		transition: background 0.2s;
+		color: var(--tc-text);
+		border: 1px solid var(--tc-border);
 	}
 
 	.back-btn:hover {
-		background: #e6e6e9;
+		background: var(--tc-surface-3);
 	}
 
 	.recovery-header h1 {
 		margin: 0 0 8px 0;
 		font-size: 28px;
 		font-weight: 800;
-		color: #2a2a2a;
+		color: var(--tc-text);
 	}
 
 	.subtitle {
 		margin: 0;
 		font-size: 14px;
-		color: #666;
+		color: var(--tc-text-muted);
 	}
 
 	.steps-indicator {
@@ -434,8 +436,9 @@
 		width: 36px;
 		height: 36px;
 		border-radius: 50%;
-		background: #e6e6e9;
-		color: #999;
+		background: var(--tc-surface-2);
+		color: var(--tc-text-muted);
+		border: 1px solid var(--tc-border);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -445,35 +448,41 @@
 	}
 
 	.step.active .step-number {
-		background: #e3473c;
-		color: white;
+		background: var(--tc-accent);
+		color: var(--tc-on-accent);
+		border-color: var(--tc-accent);
 	}
 
 	.step.completed .step-number {
-		background: #4caf50;
-		color: white;
+		background: var(--tc-success-bg);
+		color: var(--tc-success-text);
+		border-color: var(--tc-success-border);
 	}
 
 	.step-label {
 		font-size: 11px;
-		color: #999;
+		color: var(--tc-text-muted);
 		font-weight: 600;
 		text-transform: uppercase;
 	}
 
 	.step.active .step-label {
-		color: #e3473c;
+		color: var(--tc-accent);
+	}
+
+	.step.completed .step-label {
+		color: var(--tc-success-text);
 	}
 
 	.step-line {
 		flex: 1;
 		height: 2px;
-		background: #e6e6e9;
+		background: var(--tc-border);
 		transition: background 0.3s;
 	}
 
 	.step-line.completed {
-		background: #4caf50;
+		background: var(--tc-success-border);
 	}
 
 	form {
@@ -491,14 +500,14 @@
 	.form-field label {
 		font-size: 14px;
 		font-weight: 600;
-		color: #444;
+		color: var(--tc-text);
 	}
 
 	.form-field input {
 		padding: 14px;
 		border-radius: 12px;
-		border: 1.5px solid #e6e6e9;
-		background: #fbfbfc;
+		border: 1.5px solid var(--tc-border);
+		background: var(--tc-surface-2);
 		font-size: 15px;
 		transition: all 0.2s;
 		font-family: inherit;
@@ -506,9 +515,9 @@
 
 	.form-field input:focus {
 		outline: none;
-		border-color: #e3473c;
-		box-shadow: 0 10px 30px rgba(227, 71, 60, 0.12);
-		background: #ffffff;
+		border-color: var(--tc-accent);
+		box-shadow: 0 10px 30px color-mix(in srgb, var(--tc-accent) 22%, transparent);
+		background: var(--tc-surface);
 	}
 
 	.otp-input {
@@ -520,7 +529,7 @@
 
 	.form-field small {
 		font-size: 12px;
-		color: #999;
+		color: var(--tc-text-muted);
 	}
 
 	.password-wrapper {
@@ -543,16 +552,16 @@
 		cursor: pointer;
 		border-radius: 8px;
 		transition: background 0.2s;
-		color: #666;
+		color: var(--tc-text-muted);
 	}
 
 	.toggle-password:hover:not(:disabled) {
-		background: #f0f0f2;
+		background: color-mix(in srgb, var(--tc-border) 35%, transparent);
 	}
 
 	.info-box {
-		background: #e8f5e9;
-		border-left: 4px solid #4caf50;
+		background: var(--tc-success-bg);
+		border-left: 4px solid var(--tc-success-border);
 		padding: 14px;
 		border-radius: 8px;
 		display: flex;
@@ -561,13 +570,13 @@
 	}
 
 	.info-box .ms-icon {
-		color: #4caf50;
+		color: var(--tc-success-text);
 	}
 
 	.info-box p {
 		margin: 0;
 		font-size: 14px;
-		color: #2e7d32;
+		color: var(--tc-success-text);
 	}
 
 	.btn-primary,
@@ -582,14 +591,14 @@
 	}
 
 	.btn-primary {
-		background: linear-gradient(120deg, #e3473c 0%, #c23630 100%);
-		color: white;
-		box-shadow: 0 14px 30px rgba(227, 71, 60, 0.25);
+		background: linear-gradient(120deg, var(--tc-accent) 0%, var(--tc-accent-2) 100%);
+		color: var(--tc-on-accent);
+		box-shadow: 0 14px 30px color-mix(in srgb, var(--tc-accent) 30%, transparent);
 	}
 
 	.btn-primary:hover:not(:disabled) {
 		transform: translateY(-1px);
-		box-shadow: 0 16px 36px rgba(227, 71, 60, 0.32);
+		box-shadow: 0 16px 36px color-mix(in srgb, var(--tc-accent) 38%, transparent);
 	}
 
 	.btn-primary:disabled {
@@ -599,16 +608,16 @@
 
 	.btn-secondary {
 		background: transparent;
-		color: #e3473c;
-		border: 1.5px solid #e3473c;
+		color: var(--tc-accent);
+		border: 1.5px solid var(--tc-accent);
 	}
 
 	.btn-secondary:hover:not(:disabled) {
-		background: #fff9f9;
+		background: color-mix(in srgb, var(--tc-accent) 10%, transparent);
 	}
 
 	.error-text {
-		color: #d32f2f;
+		color: var(--tc-danger-text);
 		font-size: 12px;
 		font-weight: 600;
 		display: flex;
@@ -617,7 +626,7 @@
 	}
 
 	.success-text {
-		color: #4caf50;
+		color: var(--tc-success-text);
 		font-size: 12px;
 		font-weight: 600;
 		display: flex;

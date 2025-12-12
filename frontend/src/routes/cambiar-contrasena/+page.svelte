@@ -67,7 +67,7 @@
       <p class="eyebrow">Seguridad</p>
       <h1>Cambiar contraseña</h1>
       {#if $auth?.usuario?.requiere_cambio_contrasena}
-        <p class="subtitle" style="color: #e3473c; font-weight: 600;">
+        <p class="subtitle required">
           ⚠️ Debes cambiar tu contraseña temporal antes de continuar
         </p>
       {:else}
@@ -145,50 +145,48 @@
 </div>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap');
-
   .page-shell {
     position: relative;
     min-height: calc(100vh - 60px);
     display: grid;
     place-items: center;
     padding: 32px 16px;
-    background: #f7f7f8;
-    font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    color: #1f1f1f;
+    background: var(--tc-bg);
+    color: var(--tc-text);
     overflow: hidden;
   }
   .shape { position: absolute; border-radius: 999px; filter: blur(70px); opacity: 0.4; }
-  .shape-a { width: 360px; height: 360px; background: #f6c3c3; top: -120px; left: -80px; }
-  .shape-b { width: 320px; height: 320px; background: #ffd8cf; bottom: -140px; right: -60px; }
+  .shape-a { width: 360px; height: 360px; background: color-mix(in srgb, var(--tc-accent) 34%, transparent); top: -120px; left: -80px; }
+  .shape-b { width: 320px; height: 320px; background: color-mix(in srgb, var(--tc-accent-2) 28%, transparent); bottom: -140px; right: -60px; }
 
   .card {
     position: relative;
     z-index: 1;
     width: min(540px, 100%);
-    background: #fff;
+    background: var(--tc-surface);
     border-radius: 18px;
-    box-shadow: 0 20px 80px rgba(0,0,0,0.08);
+    box-shadow: var(--tc-shadow-strong);
     padding: 26px 24px 24px;
-    border: 1px solid #f0f0f0;
+    border: 1px solid var(--tc-border);
   }
   .card-head { display: grid; gap: 6px; margin-bottom: 18px; }
-  .eyebrow { margin: 0; padding: 6px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #a33b36; background: #fff1f1; border-radius: 999px; width: fit-content; font-weight: 800; }
-  h1 { margin: 4px 0 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: #2a2a2a; }
-  .subtitle { margin: 0; font-size: 14px; color: #555; }
+  .eyebrow { margin: 0; padding: 6px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in srgb, var(--tc-accent-2), var(--tc-text) 40%); background: color-mix(in srgb, var(--tc-accent) 10%, var(--tc-surface)); border-radius: 999px; width: fit-content; font-weight: 800; }
+  h1 { margin: 4px 0 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: var(--tc-text); }
+  .subtitle { margin: 0; font-size: 14px; color: var(--tc-text-muted); }
+  .subtitle.required { color: var(--tc-danger-text); font-weight: 700; }
 
   .form { display: grid; gap: 14px; }
-  .field { display: grid; gap: 6px; font-size: 14px; color: #3f3f46; }
+  .field { display: grid; gap: 6px; font-size: 14px; color: var(--tc-text); }
   .field input {
     padding: 13px 12px;
     border-radius: 12px;
-    border: 1.5px solid #e6e6e9;
-    background: #fbfbfc;
+    border: 1.5px solid var(--tc-border);
+    background: color-mix(in srgb, var(--tc-surface), var(--tc-bg) 35%);
     font-size: 15px;
-    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
     font-family: inherit;
   }
-  .field input:focus { outline: none; border-color: #e3473c; box-shadow: 0 10px 30px rgba(227,71,60,0.12); background: #fff; }
+  .field input:focus { outline: none; border-color: var(--tc-accent); box-shadow: 0 10px 30px color-mix(in srgb, var(--tc-accent), transparent 86%); background: var(--tc-surface); }
 
   .input-wrap { position: relative; display: flex; align-items: center; }
   .input-wrap input { width: 100%; padding-right: 44px; }
@@ -202,12 +200,12 @@
     cursor: pointer;
     font-size: 18px;
     padding: 4px 6px;
-    color: #c23630;
+    color: var(--tc-accent-2);
   }
 
   .warning-box {
-    background: #fff3cd;
-    border-left: 4px solid #ffc107;
+    background: var(--tc-warning-bg);
+    border-left: 4px solid var(--tc-warning-border);
     padding: 16px;
     border-radius: 8px;
     margin-bottom: 20px;
@@ -217,32 +215,32 @@
   }
 
   .warning-box .ms-icon {
-    color: #ffc107;
+    color: var(--tc-warning-text);
     flex-shrink: 0;
   }
 
   .warning-box strong {
     display: block;
     margin-bottom: 4px;
-    color: #856404;
+    color: var(--tc-warning-text);
   }
 
   .warning-box p {
     margin: 0;
-    color: #856404;
+    color: var(--tc-text);
     font-size: 14px;
   }
 
   .primary {
     margin-top: 6px;
-    border: 1px solid #f4d5d2;
+    border: 1px solid var(--tc-border-strong);
     border-radius: 12px;
     padding: 12px 14px;
     font-weight: 800;
     cursor: pointer;
-    background: linear-gradient(135deg, #e3473c, #c23630);
-    color: #fff;
-    box-shadow: 0 12px 26px rgba(227,71,60,0.25);
+    background: linear-gradient(135deg, var(--tc-accent), var(--tc-accent-2));
+    color: var(--tc-on-accent);
+    box-shadow: 0 12px 26px color-mix(in srgb, var(--tc-accent), transparent 74%);
     transition: transform 0.12s ease, box-shadow 0.18s ease;
   }
   .primary:hover { transform: translateY(-1px); }

@@ -3,10 +3,21 @@
   import { goto } from '$app/navigation';
   import { createEventDispatcher } from 'svelte';
   import { puedeAccion } from '../lib/permisos.js';
+  import { onMount } from 'svelte';
+  import { initTheme, toggleTheme, theme as themeStore } from '../lib/theme.js';
 
   const dispatch = createEventDispatcher();
 
   let userMenuOpen = false;
+  let currentTheme = 'light';
+
+  onMount(() => {
+    currentTheme = initTheme();
+    const unsub = themeStore.subscribe((t) => {
+      currentTheme = t;
+    });
+    return () => unsub();
+  });
 
   function toggleSidebar() {
     dispatch('toggle');
@@ -52,6 +63,10 @@
     userMenuOpen = false;
     handleLogout();
   }
+
+  function toggleTema() {
+    toggleTheme();
+  }
 </script>
 
 <nav class="navbar">
@@ -82,6 +97,15 @@
 
     {#if $auth.isAuthenticated}
       <div class="right">
+        <button
+          class="icon-btn"
+          on:click={toggleTema}
+          aria-label={currentTheme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          title={currentTheme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+        >
+          <span class="ms-icon">{currentTheme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+        </button>
+
         <button class="user-pill" on:click={toggleUserMenu} aria-haspopup="true" aria-expanded={userMenuOpen}>
           <span class="dot"></span>
           <div class="user-meta">
@@ -128,9 +152,9 @@
     top: 0;
     z-index: 10;
     backdrop-filter: blur(12px);
-    background: rgba(255, 255, 255, 0.8);
-    border-bottom: 1px solid #f0d8d3;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.05);
+    background: color-mix(in srgb, var(--tc-surface), transparent 20%);
+    border-bottom: 1px solid var(--tc-border);
+    box-shadow: var(--tc-shadow);
     width: 100%;
   }
 
@@ -142,10 +166,10 @@
     gap: 12px;
   }
 
-  .user-pill:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(227, 71, 60, 0.12); }
-  .user-pill:focus-visible { outline: 2px solid #e3473c; outline-offset: 2px; }
+  .user-pill:hover { transform: translateY(-1px); box-shadow: 0 10px 24px color-mix(in srgb, var(--tc-accent), transparent 88%); }
+  .user-pill:focus-visible { outline: 2px solid var(--tc-accent); outline-offset: 2px; }
 
-  .caret { font-size: 18px; color: #c23630; }
+  .caret { font-size: 18px; color: var(--tc-accent-2); }
 
   .left {
     display: flex;
@@ -160,9 +184,9 @@
     width: 38px;
     height: 38px;
     border-radius: 12px;
-    border: 1px solid #f4d5d2;
-    background: #fff5f4;
-    color: #c23630;
+    border: 1px solid var(--tc-border-strong);
+    background: var(--tc-surface-2);
+    color: var(--tc-accent-2);
     font-size: 18px;
     cursor: pointer;
     transition: transform 0.12s ease, box-shadow 0.2s ease;
@@ -170,7 +194,7 @@
 
   .icon-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 18px color-mix(in srgb, #000, transparent 78%);
   }
 
   .brand {
@@ -188,14 +212,14 @@
     width: 38px;
     height: 38px;
     border-radius: 12px;
-    background: linear-gradient(135deg, #e3473c, #c23630);
-    color: #fff;
+    background: linear-gradient(135deg, var(--tc-accent), var(--tc-accent-2));
+    color: var(--tc-on-accent);
     display: grid;
     place-items: center;
     font-weight: 800;
     letter-spacing: -0.03em;
-    border: 1px solid #f4d5d2;
-    box-shadow: 0 10px 24px rgba(227, 71, 60, 0.25);
+    border: 1px solid var(--tc-border-strong);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--tc-accent), transparent 70%);
   }
 
   .brand-text {
@@ -207,14 +231,14 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: #a33b36;
+    color: color-mix(in srgb, var(--tc-accent-2), var(--tc-text) 35%);
     font-weight: 800;
   }
 
   .brand-name {
     font-size: 17px;
     font-weight: 800;
-    color: #2c2c2c;
+    color: var(--tc-text);
     letter-spacing: -0.01em;
   }
 
@@ -242,15 +266,15 @@
     gap: 8px;
     padding: 10px 12px;
     border-radius: 999px;
-    background: #fff1f1;
-    border: 1px solid #f4d5d2;
-    color: #a33b36;
-    box-shadow: 0 8px 20px rgba(227, 71, 60, 0.08);
+    background: var(--tc-surface-3);
+    border: 1px solid var(--tc-border-strong);
+    color: color-mix(in srgb, var(--tc-accent-2), var(--tc-text) 35%);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--tc-accent), transparent 88%);
   }
 
   .user-meta { display: grid; line-height: 1.2; }
   .user-name { font-size: 13px; font-weight: 800; }
-  .user-role { font-size: 11px; font-weight: 700; color: #b75b56; text-transform: uppercase; letter-spacing: 0.08em; }
+  .user-role { font-size: 11px; font-weight: 700; color: color-mix(in srgb, var(--tc-text-muted), var(--tc-accent-2) 10%); text-transform: uppercase; letter-spacing: 0.08em; }
 
   .user-pill .dot {
     width: 8px;
@@ -266,10 +290,10 @@
     position: absolute;
     top: 52px;
     right: 0;
-    background: #fff;
-    border: 1px solid #f0d8d3;
+    background: var(--tc-surface);
+    border: 1px solid var(--tc-border);
     border-radius: 12px;
-    box-shadow: 0 16px 40px rgba(0,0,0,0.12);
+    box-shadow: var(--tc-shadow-strong);
     padding: 8px;
     display: grid;
     gap: 4px;
@@ -286,16 +310,16 @@
     background: transparent;
     border-radius: 10px;
     font-weight: 700;
-    color: #2f2f2f;
+    color: var(--tc-text);
     cursor: pointer;
     transition: background 0.12s ease, transform 0.12s ease;
     width: 100%;
     text-align: left;
   }
 
-  .menu-item:hover { background: #fff5f4; transform: translateX(2px); }
-  .menu-item .ms-icon { color: #c23630; font-size: 18px; }
-  .menu-item.danger { color: #a33b36; }
+  .menu-item:hover { background: var(--tc-surface-2); transform: translateX(2px); }
+  .menu-item .ms-icon { color: var(--tc-accent-2); font-size: 18px; }
+  .menu-item.danger { color: color-mix(in srgb, var(--tc-accent-2), var(--tc-text) 25%); }
 
 
   @media (max-width: 768px) {

@@ -2,17 +2,159 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores.js';
-	import { usuarioService, vehiculoService, conductorService, trayectoService } from '../lib/api/services.js';
+	import {
+		usuarioService,
+		vehiculoService,
+		conductorService,
+		trayectoService,
+		clienteService,
+		rolService
+	} from '../lib/api/services.js';
 	import { authService } from '$lib/api/services.js';
 	import { puedeAccion } from '$lib/permisos.js';
+	import { MODULOS as MODULOS_APP, modulosConfig } from '$lib/modulos.js';
 
-	let stats = {
+	// En el sistema existen 10 módulos (incluye `modulos`), pero el sidebar muestra 9 opciones
+	// porque el menú no incluye el módulo de configuración `modulos`.
+	const SIDEBAR_MODULOS = [
+		'dashboard',
+		'usuarios',
+		'clientes',
+		'vehiculos',
+		'conductores',
+		'trayectos',
+		'asignaciones',
+		'roles',
+		'registroHoras'
+	];
+
+	const MODULE_META = {
+		dashboard: {
+			label: 'Dashboard',
+			icon: 'home',
+			path: '/',
+			description: 'Visión general y métricas clave.'
+		},
+		usuarios: {
+			label: 'Usuarios',
+			icon: 'group',
+			path: '/usuarios',
+			description: 'Administra usuarios, roles y estados.'
+		},
+		clientes: {
+			label: 'Clientes',
+			icon: 'apartment',
+			path: '/clientes',
+			description: 'Gestiona clientes y su estado.'
+		},
+		roles: {
+			label: 'Roles',
+			icon: 'admin_panel_settings',
+			path: '/roles',
+			description: 'Define roles y permisos por rol.'
+		},
+		modulos: {
+			label: 'Módulos',
+			icon: 'tune',
+			path: '/modulos',
+			description: 'Configura visibilidad y acciones por rol.'
+		},
+		vehiculos: {
+			label: 'Vehículos',
+			icon: 'local_shipping',
+			path: '/vehiculos',
+			description: 'Control de flota, documentos y estados.'
+		},
+		conductores: {
+			label: 'Conductores',
+			icon: 'badge',
+			path: '/conductores',
+			description: 'Gestión de conductores, alertas y estados.'
+		},
+		trayectos: {
+			label: 'Trayectos',
+			icon: 'map',
+			path: '/trayectos',
+			description: 'Rutas, planificación y operación.'
+		},
+		asignaciones: {
+			label: 'Asignaciones',
+			icon: 'route',
+			path: '/asignaciones',
+			description: 'Asigna trayectos a vehículos y conductores.'
+		},
+		registroHoras: {
+			label: 'Registro de Horas',
+			icon: 'schedule',
+			path: '/operaciones/horas',
+			description: 'Registra horas de conducción por conductor.'
+		}
+	};
+
+	let dataset = {
+		usuarios: [],
+		clientes: [],
+		roles: [],
+		vehiculos: [],
+		conductores: [],
+		trayectos: [],
+		asignaciones: []
+	};
+
+	let totals = {
 		usuarios: 0,
+		clientes: 0,
+		roles: 0,
 		vehiculos: 0,
 		conductores: 0,
-		trayectos: 0
+		trayectos: 0,
+		asignaciones: 0,
+		modulos: SIDEBAR_MODULOS.length
 	};
+
+	let percents = {
+		usuariosActivos: 0,
+		clientesActivos: 0,
+		vehiculosOperativos: 0,
+		vehiculosEnRuta: 0,
+		conductoresNoInactivos: 0,
+		conductoresEnRuta: 0,
+		trayectosAsignados: 0,
+		modulosHabilitados: 0
+	};
+	let modulosHabilitadosPct = 0;
+	let modulosHabilitadosCount = 0;
+
+	let indicatorCards = [];
+	let chartCards = [];
 	let loading = true;
+
+	const lower = (value) => String(value ?? '').toLowerCase();
+	const pct = (part, total) => {
+		const p = Number(part) || 0;
+		const t = Number(total) || 0;
+		if (t <= 0) return 0;
+		return Math.max(0, Math.min(100, Math.round((p / t) * 100)));
+	};
+	const countWhere = (items, predicate) => {
+		if (!Array.isArray(items) || typeof predicate !== 'function') return 0;
+		let count = 0;
+		for (const item of items) {
+			if (predicate(item)) count += 1;
+		}
+		return count;
+	};
+
+	$: rolActual = $auth?.usuario?.nombre_rol ? String($auth.usuario.nombre_rol).toUpperCase() : null;
+	$: cfgRol = rolActual ? $modulosConfig?.[rolActual] : null;
+	$: {
+		// Porcentaje de módulos habilitados (sidebar + ver) para el rol actual.
+		const habilitados = cfgRol
+			? SIDEBAR_MODULOS.filter((m) => cfgRol?.[m]?.sidebar === true && cfgRol?.[m]?.acciones?.ver === true)
+			: [];
+		modulosHabilitadosCount = habilitados.length;
+		modulosHabilitadosPct = pct(habilitados.length, SIDEBAR_MODULOS.length);
+	}
 
 	onMount(async () => {
 		// Si no puede ver dashboard, intentar redirigir al primer módulo accesible
@@ -30,26 +172,172 @@
 		}
 
 		try {
+			const puedeVerConductores = puedeAccion('conductores', 'ver') || puedeAccion('registroHoras', 'ver');
 			const tareas = [
 				puedeAccion('usuarios', 'ver') ? usuarioService.listar() : Promise.resolve(null),
+				puedeAccion('clientes', 'ver') ? clienteService.listar() : Promise.resolve(null),
+				puedeAccion('roles', 'ver') ? rolService.listar() : Promise.resolve(null),
 				puedeAccion('vehiculos', 'ver') ? vehiculoService.listar() : Promise.resolve(null),
-				puedeAccion('conductores', 'ver') ? conductorService.listar() : Promise.resolve(null),
-				puedeAccion('trayectos', 'ver') ? trayectoService.listar() : Promise.resolve(null)
+				puedeVerConductores ? conductorService.listar() : Promise.resolve(null),
+				puedeAccion('trayectos', 'ver') ? trayectoService.listar() : Promise.resolve(null),
+				puedeAccion('asignaciones', 'ver') ? trayectoService.listarAsignaciones() : Promise.resolve(null)
 			];
 
-			const [usuarios, vehiculos, conductores, trayectos] = await Promise.all(tareas);
+			const [usuariosRes, clientesRes, rolesRes, vehiculosRes, conductoresRes, trayectosRes, asignacionesRes] =
+				await Promise.all(tareas);
 
-			stats = {
-				usuarios: usuarios?.usuarios?.length || 0,
-				vehiculos: vehiculos?.vehiculos?.length || 0,
-				conductores: conductores?.conductores?.length || 0,
-				trayectos: trayectos?.trayectos?.length || 0
+			dataset = {
+				usuarios: usuariosRes?.usuarios || [],
+				clientes: clientesRes?.clientes || [],
+				roles: rolesRes?.roles || [],
+				vehiculos: vehiculosRes?.vehiculos || [],
+				conductores: conductoresRes?.conductores || [],
+				trayectos: trayectosRes?.trayectos || [],
+				asignaciones: asignacionesRes?.asignaciones || []
+			};
+
+			totals = {
+				usuarios: dataset.usuarios.length,
+				clientes: dataset.clientes.length,
+				roles: dataset.roles.length,
+				vehiculos: dataset.vehiculos.length,
+				conductores: dataset.conductores.length,
+				trayectos: dataset.trayectos.length,
+				asignaciones: dataset.asignaciones.length,
+				modulos: SIDEBAR_MODULOS.length
+			};
+
+			const usuariosActivos = countWhere(dataset.usuarios, (u) => lower(u?.estado) === 'activo');
+			const clientesActivos = countWhere(dataset.clientes, (c) => lower(c?.estado) === 'activo');
+			const vehiculosOperativos = countWhere(dataset.vehiculos, (v) => lower(v?.estado_operativo) === 'operativo');
+			const vehiculosEnRuta = countWhere(dataset.vehiculos, (v) => lower(v?.estado_operativo) === 'en_ruta');
+			const conductoresNoInactivos = countWhere(dataset.conductores, (c) => lower(c?.estado) !== 'inactivo');
+			const conductoresEnRuta = countWhere(dataset.conductores, (c) => lower(c?.estado) === 'en_ruta');
+			const trayectosAsignados = pct(totals.asignaciones, totals.trayectos);
+
+			percents = {
+				usuariosActivos: pct(usuariosActivos, totals.usuarios),
+				clientesActivos: pct(clientesActivos, totals.clientes),
+				vehiculosOperativos: pct(vehiculosOperativos, totals.vehiculos),
+				vehiculosEnRuta: pct(vehiculosEnRuta, totals.vehiculos),
+				conductoresNoInactivos: pct(conductoresNoInactivos, totals.conductores),
+				conductoresEnRuta: pct(conductoresEnRuta, totals.conductores),
+				trayectosAsignados,
+				modulosHabilitados: modulosHabilitadosPct
 			};
 		} catch (error) {
 			console.error('Error cargando estadísticas:', error);
 		}
 		loading = false;
 	});
+
+	$: {
+		const cards = MODULOS_APP.filter((m) => m !== 'dashboard').map((modulo) => {
+			const meta = MODULE_META[modulo] || { label: modulo, icon: 'apps', path: '/' };
+			const sinAcceso = !puedeAccion(modulo, 'ver');
+			let value = '—';
+			let percentValue = null;
+			let percentLabel = '';
+
+			if (modulo === 'usuarios') {
+				value = totals.usuarios;
+				percentValue = percents.usuariosActivos;
+				percentLabel = 'activos';
+			} else if (modulo === 'clientes') {
+				value = totals.clientes;
+				percentValue = percents.clientesActivos;
+				percentLabel = 'activos';
+			} else if (modulo === 'roles') {
+				value = totals.roles;
+			} else if (modulo === 'modulos') {
+				value = totals.modulos;
+				percentValue = modulosHabilitadosPct;
+				percentLabel = 'habilitados';
+			} else if (modulo === 'vehiculos') {
+				value = totals.vehiculos;
+				percentValue = percents.vehiculosOperativos;
+				percentLabel = 'operativos';
+			} else if (modulo === 'conductores') {
+				value = totals.conductores;
+				percentValue = percents.conductoresNoInactivos;
+				percentLabel = 'disponibles';
+			} else if (modulo === 'trayectos') {
+				value = totals.trayectos;
+				percentValue = percents.trayectosAsignados;
+				percentLabel = 'asignados';
+			} else if (modulo === 'asignaciones') {
+				value = totals.asignaciones;
+				percentValue = percents.vehiculosEnRuta;
+				percentLabel = 'flota en ruta';
+			} else if (modulo === 'registroHoras') {
+				// No hay endpoint dedicado de “horas” para un total global; usamos conductores como base del módulo.
+				value = totals.conductores;
+				percentValue = percents.conductoresEnRuta;
+				percentLabel = 'conductores en ruta';
+			}
+
+			return {
+				modulo,
+				label: meta.label,
+				icon: meta.icon,
+				path: meta.path,
+				description: meta.description,
+				value,
+				percentValue,
+				percentLabel,
+				disabled: sinAcceso
+			};
+		});
+
+		indicatorCards = cards;
+
+		chartCards = [
+			{
+				key: 'usuarios',
+				title: 'Usuarios activos',
+				subtitle: `${totals.usuarios} usuarios`,
+				percent: percents.usuariosActivos,
+				ring: 'var(--tc-success-text)'
+			},
+			{
+				key: 'clientes',
+				title: 'Clientes activos',
+				subtitle: `${totals.clientes} clientes`,
+				percent: percents.clientesActivos,
+				ring: 'var(--tc-success-text)'
+			},
+			{
+				key: 'vehiculos',
+				title: 'Vehículos operativos',
+				subtitle: `${totals.vehiculos} vehículos`,
+				percent: percents.vehiculosOperativos,
+				ring: 'var(--tc-accent)'
+			},
+			{
+				key: 'enRuta',
+				title: 'Flota en ruta',
+				subtitle: `${totals.vehiculos} vehículos`,
+				percent: percents.vehiculosEnRuta,
+				ring: 'var(--tc-accent-2)'
+			},
+			{
+				key: 'trayectos',
+				title: 'Trayectos asignados',
+				subtitle: `${totals.asignaciones} asignaciones`,
+				percent: percents.trayectosAsignados,
+				ring: 'var(--tc-accent-2)'
+			},
+			{
+				key: 'modulos',
+				title: 'Módulos habilitados',
+				subtitle: rolActual
+					? `${modulosHabilitadosCount} de ${SIDEBAR_MODULOS.length} (rol ${rolActual})`
+					: `${SIDEBAR_MODULOS.length} módulos`,
+				percent: modulosHabilitadosPct,
+				ring: 'var(--tc-warning-text)'
+			}
+		];
+	}
 </script>
 
 <svelte:head>
@@ -79,12 +367,15 @@
 			<div class="hero-stats">
 				<div class="mini-stat">
 					<span>Usuarios</span>
-					<strong>{loading ? '—' : stats.usuarios}</strong>
+					<strong>{loading ? '—' : totals.usuarios}</strong>
 				</div>
-				<div class="divider"></div>
 				<div class="mini-stat">
 					<span>Vehículos</span>
-					<strong>{loading ? '—' : stats.vehiculos}</strong>
+					<strong>{loading ? '—' : totals.vehiculos}</strong>
+				</div>
+				<div class="mini-stat">
+					<span>Asignaciones</span>
+					<strong>{loading ? '—' : totals.asignaciones}</strong>
 				</div>
 			</div>
 			<p class="hint">Monitorea tu operación y accede rápido a cada módulo.</p>
@@ -102,42 +393,66 @@
 				<div>
 					<p class="label">Indicadores</p>
 					<h2>Métricas clave</h2>
-					<p class="section-lede">Tu snapshot operativo: usuarios, flota, conductores y rutas en marcha.</p>
+					<p class="section-lede">Indicadores por módulo: totales y porcentajes operativos.</p>
 				</div>
 			</div>
 
 			<div class="stats-grid">
-				<div class="stat-card" aria-label="Usuarios">
-					<div class="stat-icon"><span class="ms-icon">group</span></div>
-					<div class="stat-body">
-						<p class="stat-label">Usuarios</p>
-						<p class="stat-value">{stats.usuarios}</p>
+				{#each indicatorCards as card (card.modulo)}
+					<div class="stat-card" class:disabled={card.disabled} aria-label={card.label}>
+						<div class="stat-icon"><span class="ms-icon">{card.icon}</span></div>
+						<div class="stat-body">
+							<p class="stat-label">{card.label}</p>
+							<p class="stat-value">{card.value}</p>
+							{#if card.percentValue !== null && card.percentValue !== undefined}
+								<p class="stat-sub">{card.percentValue}% {card.percentLabel}</p>
+								<div class="mini-bar" aria-hidden="true">
+									<span style={`width: ${card.percentValue}%`}></span>
+								</div>
+							{:else}
+								<p class="stat-sub muted">{card.disabled ? 'Sin acceso' : '—'}</p>
+							{/if}
+						</div>
 					</div>
-				</div>
+				{/each}
+			</div>
+		</section>
 
-				<div class="stat-card" aria-label="Vehículos">
-					<div class="stat-icon"><span class="ms-icon">local_shipping</span></div>
-					<div class="stat-body">
-						<p class="stat-label">Vehículos</p>
-						<p class="stat-value">{stats.vehiculos}</p>
-					</div>
+		<section class="section">
+			<div class="section-head">
+				<div>
+					<p class="label">Control</p>
+					<h2>Gráficos de porcentaje</h2>
+					<p class="section-lede">Lectura rápida de salud operacional por módulo.</p>
 				</div>
+			</div>
 
-				<div class="stat-card" aria-label="Conductores">
-					<div class="stat-icon"><span class="ms-icon">badge</span></div>
-					<div class="stat-body">
-						<p class="stat-label">Conductores</p>
-						<p class="stat-value">{stats.conductores}</p>
+			<div class="charts-grid">
+				{#each chartCards as chart (chart.key)}
+					<div class="chart-card" style={`--ring: ${chart.ring};`}>
+						<div class="donut" aria-hidden="true">
+							<svg viewBox="0 0 42 42" class="donut-svg">
+								<circle class="donut-bg" cx="21" cy="21" r="15.915" fill="transparent" />
+								<circle
+									class="donut-fg"
+									cx="21"
+									cy="21"
+									r="15.915"
+									fill="transparent"
+									stroke-dasharray={`${chart.percent} ${100 - chart.percent}`}
+									stroke-dashoffset="25"
+								/>
+							</svg>
+							<div class="donut-center">
+								<span class="donut-value">{chart.percent}%</span>
+							</div>
+						</div>
+						<div class="chart-body">
+							<p class="chart-title">{chart.title}</p>
+							<p class="chart-subtitle">{chart.subtitle}</p>
+						</div>
 					</div>
-				</div>
-
-				<div class="stat-card" aria-label="Trayectos">
-					<div class="stat-icon"><span class="ms-icon">map</span></div>
-					<div class="stat-body">
-						<p class="stat-label">Trayectos</p>
-						<p class="stat-value">{stats.trayectos}</p>
-					</div>
-				</div>
+				{/each}
 			</div>
 		</section>
 
@@ -145,89 +460,54 @@
 			<div class="section-head">
 				<div>
 					<p class="label">Módulos</p>
-					<h2>Capacidades principales</h2>
-					<p class="section-lede">Accede a los pilares del sistema y mantén la operación al día.</p>
+					<h2>Todos los módulos</h2>
+					<p class="section-lede">Listado completo de capacidades de la aplicación (según permisos del rol).</p>
 				</div>
 			</div>
 
 			<div class="features-grid">
-				<div class="feature-card">
-					<div class="feature-icon"><span class="ms-icon">person</span></div>
-					<div>
-						<h4>Gestión de Usuarios</h4>
-						<p>Crea, edita y administra usuarios con roles y permisos específicos.</p>
+				{#each indicatorCards as m (m.modulo)}
+					<div class="feature-card" class:disabled={m.disabled} aria-label={m.label}>
+						<div class="feature-icon"><span class="ms-icon">{m.icon}</span></div>
+						<div>
+							<div class="feature-title-row">
+								<h4>{m.label}</h4>
+								<span class="feature-chip" class:locked={m.disabled}>
+									{m.disabled ? 'Sin acceso' : 'Disponible'}
+								</span>
+							</div>
+							<p>{m.description}</p>
+						</div>
 					</div>
-				</div>
-
-				<div class="feature-card">
-					<div class="feature-icon"><span class="ms-icon">local_shipping</span></div>
-					<div>
-						<h4>Gestión de Vehículos</h4>
-						<p>Registra y controla la flota con documentos, historial y estado operativo.</p>
-					</div>
-				</div>
-
-				<div class="feature-card">
-					<div class="feature-icon"><span class="ms-icon">badge</span></div>
-					<div>
-						<h4>Gestión de Conductores</h4>
-						<p>Monitorea horas de conducción, alertas de fatiga y estado de conductores.</p>
-					</div>
-				</div>
-
-				<div class="feature-card">
-					<div class="feature-icon"><span class="ms-icon">map</span></div>
-					<div>
-						<h4>Gestión de Trayectos</h4>
-						<p>Crea rutas, asigna vehículos y conductores con seguimiento en tiempo real.</p>
-					</div>
-				</div>
-
-				<div class="feature-card">
-					<div class="feature-icon"><span class="ms-icon">route</span></div>
-					<div>
-						<h4>Asignaciones</h4>
-						<p>Coordina la asignación de trayectos a vehículos y conductores.</p>
-					</div>
-				</div>
-
-				<div class="feature-card">
-					<div class="feature-icon"><span class="ms-icon">insert_chart_outlined</span></div>
-					<div>
-						<h4>Reportes</h4>
-						<p>Visualiza estadísticas y métricas de operación del sistema.</p>
-					</div>
-				</div>
+				{/each}
 			</div>
 		</section>
 	{/if}
 </div>
 
 <style>
-	@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
-
 	.page-shell {
 		position: relative;
 		width: 100%;
 		padding: 28px 26px 60px 26px;
 		box-sizing: border-box;
 		overflow: hidden;
-		font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
-		color: #1f1f1f;
+		font-family: var(--tc-font);
+		color: var(--tc-text);
 	}
 
 	.bg-shape {
 		position: absolute;
 		border-radius: 999px;
 		filter: blur(90px);
-		opacity: 0.35;
+		opacity: 0.28;
 		z-index: 0;
 	}
 
 	.shape-a {
 		width: 420px;
 		height: 420px;
-		background: #f6c3c3;
+		background: color-mix(in srgb, var(--tc-accent), transparent 78%);
 		top: -140px;
 		left: -120px;
 	}
@@ -235,10 +515,11 @@
 	.shape-b {
 		width: 380px;
 		height: 380px;
-		background: #ffd8cf;
+		background: color-mix(in srgb, var(--tc-accent-2), transparent 80%);
 		bottom: -160px;
 		right: -100px;
 	}
+	:global(html[data-theme='dark']) .page-shell .bg-shape { opacity: 0.18; }
 
 	.hero {
 		position: relative;
@@ -248,9 +529,9 @@
 		gap: 22px;
 		padding: 28px;
 		border-radius: 18px;
-		background: linear-gradient(125deg, #ffffff 0%, #fff4f2 100%);
-		border: 1px solid #f0d8d3;
-		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.06);
+		background: linear-gradient(125deg, var(--tc-surface) 0%, var(--tc-surface-2) 100%);
+		border: 1px solid var(--tc-border);
+		box-shadow: var(--tc-shadow);
 		margin-bottom: 26px;
 	}
 
@@ -259,7 +540,7 @@
 		font-size: 32px;
 		font-weight: 800;
 		letter-spacing: -0.02em;
-		color: #262626;
+		color: var(--tc-text);
 	}
 
 	.eyebrow {
@@ -267,14 +548,14 @@
 		font-size: 12px;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
-		color: #a33b36;
+		color: var(--tc-accent-2);
 		font-weight: 700;
 	}
 
 	.lede {
 		margin: 0;
 		font-size: 15px;
-		color: #525252;
+		color: var(--tc-text-muted);
 		max-width: 640px;
 		line-height: 1.5;
 	}
@@ -294,34 +575,34 @@
 		border-radius: 999px;
 		font-size: 13px;
 		font-weight: 700;
-		background: #fff1f1;
-		color: #a33b36;
-		border: 1px solid #f4d5d2;
+		background: var(--tc-surface-3);
+		color: var(--tc-accent-2);
+		border: 1px solid var(--tc-border-strong);
 	}
 
 	.chip.soft {
-		background: #fafafa;
-		color: #3f3f46;
-		border-color: #ededed;
+		background: color-mix(in srgb, var(--tc-surface), var(--tc-bg) 40%);
+		color: var(--tc-text-muted);
+		border-color: var(--tc-border);
 	}
 
 	.chip .dot {
 		width: 8px;
 		height: 8px;
 		border-radius: 50%;
-		background: #2ecc71;
-		box-shadow: 0 0 0 6px rgba(46, 204, 113, 0.16);
+		background: var(--tc-success-text);
+		box-shadow: 0 0 0 6px color-mix(in srgb, var(--tc-success-text), transparent 84%);
 	}
 
 	.hero-card {
 		align-self: center;
-		background: #fff;
+		background: linear-gradient(135deg, var(--tc-surface), var(--tc-surface-2));
 		border-radius: 14px;
 		padding: 18px;
-		border: 1px solid #f0f0f0;
-		box-shadow: 0 12px 36px rgba(0, 0, 0, 0.06);
+		border: 1px solid var(--tc-border-strong);
+		box-shadow: var(--tc-shadow);
 		display: grid;
-		gap: 10px;
+		gap: 12px;
 	}
 
 	.label {
@@ -329,50 +610,58 @@
 		font-size: 12px;
 		text-transform: uppercase;
 		letter-spacing: 0.1em;
-		color: #9a9a9a;
+		color: var(--tc-text-muted);
 		font-weight: 700;
 	}
 
 	.hero-stats {
 		display: grid;
-		grid-template-columns: repeat(3, auto);
-		align-items: center;
-		gap: 14px;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 0;
+		border-radius: 12px;
+		overflow: hidden;
+		border: 1px solid var(--tc-border);
+		background: color-mix(in srgb, var(--tc-surface-2), var(--tc-surface) 55%);
 	}
 
 	.mini-stat {
 		display: grid;
-		gap: 4px;
-		font-size: 14px;
-		color: #4a4a4a;
+		align-content: start;
+		gap: 6px;
+		padding: 12px 14px;
+		font-size: 13px;
+		color: var(--tc-text-muted);
+	}
+
+	.mini-stat:not(:first-child) {
+		border-left: 1px solid var(--tc-border);
+	}
+
+	.mini-stat span {
+		font-weight: 700;
 	}
 
 	.mini-stat strong {
-		font-size: 22px;
-		font-weight: 800;
-		color: #e3473c;
-	}
-
-	.divider {
-		width: 1px;
-		height: 36px;
-		background: #ededed;
+		font-size: 24px;
+		line-height: 1;
+		font-weight: 900;
+		color: var(--tc-accent);
 	}
 
 	.hint {
 		margin: 0;
 		font-size: 13px;
-		color: #6f6f6f;
+		color: var(--tc-text-muted);
 	}
 
 	.section {
 		position: relative;
 		z-index: 1;
-		background: #fff;
+		background: var(--tc-surface);
 		border-radius: 16px;
 		padding: 20px 22px;
-		border: 1px solid #f1f1f1;
-		box-shadow: 0 14px 42px rgba(0, 0, 0, 0.04);
+		border: 1px solid var(--tc-border);
+		box-shadow: var(--tc-shadow);
 		margin-bottom: 18px;
 	}
 
@@ -380,12 +669,12 @@
 		margin: 4px 0 6px 0;
 		font-size: 22px;
 		font-weight: 800;
-		color: #2a2a2a;
+		color: var(--tc-text);
 	}
 
 	.section-lede {
 		margin: 0;
-		color: #585858;
+		color: var(--tc-text-muted);
 		font-size: 14px;
 	}
 
@@ -398,35 +687,33 @@
 
 	.stat-card {
 		display: grid;
-		grid-template-columns: auto 1fr auto;
+		grid-template-columns: auto 1fr;
 		align-items: center;
 		gap: 12px;
 		padding: 16px;
 		border-radius: 14px;
-		background: linear-gradient(135deg, #fff, #fff8f6);
-		border: 1px solid #f0dcd8;
-		text-decoration: none;
+		background: linear-gradient(135deg, var(--tc-surface), var(--tc-surface-2));
+		border: 1px solid var(--tc-border);
 		color: inherit;
-		transition: transform 0.12s ease, box-shadow 0.2s ease;
-		box-shadow: 0 10px 28px rgba(0, 0, 0, 0.04);
+		transition: box-shadow 0.2s ease;
+		box-shadow: var(--tc-shadow);
 	}
 
 	.stat-card:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 14px 34px rgba(227, 71, 60, 0.18);
+		box-shadow: 0 14px 34px color-mix(in srgb, var(--tc-accent), transparent 82%);
 	}
 
 	.stat-icon {
 		font-size: 26px;
-		background: #fff1f1;
+		background: var(--tc-surface-3);
 		border-radius: 12px;
 		padding: 10px;
-		border: 1px solid #f4d5d2;
+		border: 1px solid var(--tc-border-strong);
 	}
 
 	.stat-icon .ms-icon {
 		font-size: 24px;
-		color: #c23630;
+		color: var(--tc-accent-2);
 	}
 
 	.stat-body {
@@ -436,7 +723,7 @@
 
 	.stat-label {
 		margin: 0;
-		color: #4b4b4b;
+		color: var(--tc-text-muted);
 		font-size: 14px;
 		font-weight: 600;
 	}
@@ -445,7 +732,44 @@
 		margin: 0;
 		font-size: 24px;
 		font-weight: 800;
-		color: #e3473c;
+		color: var(--tc-accent);
+	}
+
+	.stat-sub {
+		margin: 0;
+		font-size: 12px;
+		font-weight: 700;
+		color: var(--tc-text-muted);
+	}
+
+	.stat-sub.muted {
+		color: color-mix(in srgb, var(--tc-text-muted), transparent 15%);
+	}
+
+	.mini-bar {
+		height: 8px;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--tc-border), transparent 5%);
+		border: 1px solid var(--tc-border);
+		overflow: hidden;
+		margin-top: 4px;
+	}
+
+	.mini-bar span {
+		display: block;
+		height: 100%;
+		background: linear-gradient(90deg, var(--tc-accent), var(--tc-accent-2));
+		border-radius: 999px;
+	}
+
+	.stat-card.disabled {
+		opacity: 0.75;
+		cursor: default;
+	}
+
+	.stat-card.disabled:hover {
+		transform: none;
+		box-shadow: var(--tc-shadow);
 	}
 
 	.features-grid {
@@ -462,23 +786,32 @@
 		gap: 12px;
 		padding: 16px;
 		border-radius: 14px;
-		background: #fafafa;
-		border: 1px solid #ededed;
+		background: color-mix(in srgb, var(--tc-surface), var(--tc-bg) 35%);
+		border: 1px solid var(--tc-border);
 		transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+		cursor: default;
+		text-align: left;
+		width: 100%;
+	}
+
+	.feature-card.disabled,
+	.feature-card:disabled {
+		opacity: 0.75;
+		cursor: not-allowed;
 	}
 
 	.feature-card:hover {
 		transform: translateY(-1px);
-		border-color: #f0d8d3;
-		box-shadow: 0 10px 26px rgba(0, 0, 0, 0.05);
+		border-color: var(--tc-border-strong);
+		box-shadow: var(--tc-shadow);
 	}
 
 	.feature-icon {
 		width: 44px;
 		height: 44px;
 		border-radius: 12px;
-		background: #fff1f1;
-		border: 1px solid #f4d5d2;
+		background: var(--tc-surface-3);
+		border: 1px solid var(--tc-border-strong);
 		display: grid;
 		place-items: center;
 		font-size: 20px;
@@ -486,21 +819,121 @@
 
 	.feature-icon .ms-icon {
 		font-size: 22px;
-		color: #c23630;
+		color: var(--tc-accent-2);
 	}
 
 	.feature-card h4 {
 		margin: 0 0 6px 0;
 		font-size: 16px;
 		font-weight: 800;
-		color: #2f2f2f;
+		color: var(--tc-text);
 	}
 
 	.feature-card p {
 		margin: 0;
-		color: #5c5c5c;
+		color: var(--tc-text-muted);
 		font-size: 14px;
 		line-height: 1.45;
+	}
+
+	.feature-title-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		margin-bottom: 6px;
+	}
+
+	.feature-title-row h4 {
+		margin: 0;
+	}
+
+	.feature-chip {
+		padding: 6px 10px;
+		border-radius: 999px;
+		font-size: 12px;
+		font-weight: 800;
+		border: 1px solid var(--tc-success-border);
+		background: var(--tc-success-bg);
+		color: var(--tc-success-text);
+		white-space: nowrap;
+	}
+
+	.feature-chip.locked {
+		border-color: var(--tc-border);
+		background: color-mix(in srgb, var(--tc-surface), var(--tc-bg) 35%);
+		color: var(--tc-text-muted);
+	}
+
+	.charts-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+		gap: 14px;
+		margin-top: 14px;
+	}
+
+	.chart-card {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 14px;
+		align-items: center;
+		padding: 16px;
+		border-radius: 14px;
+		border: 1px solid var(--tc-border);
+		background: linear-gradient(135deg, var(--tc-surface), var(--tc-surface-2));
+		box-shadow: var(--tc-shadow);
+	}
+
+	.donut {
+		position: relative;
+		width: 74px;
+		height: 74px;
+		display: grid;
+		place-items: center;
+	}
+
+	.donut-svg {
+		width: 74px;
+		height: 74px;
+		transform: rotate(-90deg);
+	}
+
+	.donut-bg {
+		stroke: color-mix(in srgb, var(--tc-border), transparent 10%);
+		stroke-width: 5.5;
+	}
+
+	.donut-fg {
+		stroke: var(--ring);
+		stroke-width: 5.5;
+		stroke-linecap: round;
+	}
+
+	.donut-center {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+	}
+
+	.donut-value {
+		font-weight: 900;
+		font-size: 14px;
+		color: var(--tc-text);
+	}
+
+	.chart-title {
+		margin: 0;
+		font-weight: 900;
+		font-size: 14px;
+		color: var(--tc-text);
+	}
+
+	.chart-subtitle {
+		margin: 4px 0 0 0;
+		font-size: 12px;
+		color: var(--tc-text-muted);
+		font-weight: 700;
 	}
 
 	.loading {
@@ -510,7 +943,7 @@
 		place-items: center;
 		gap: 12px;
 		padding: 60px;
-		color: #4a4a4a;
+		color: var(--tc-text-muted);
 		font-weight: 600;
 	}
 
@@ -518,8 +951,8 @@
 		width: 40px;
 		height: 40px;
 		border-radius: 50%;
-		border: 4px solid #ffe0db;
-		border-top-color: #e3473c;
+		border: 4px solid color-mix(in srgb, var(--tc-accent), transparent 82%);
+		border-top-color: var(--tc-accent);
 		animation: spin 0.8s linear infinite;
 	}
 
@@ -555,8 +988,9 @@
 			grid-template-columns: 1fr;
 		}
 
-		.divider {
-			display: none;
+		.mini-stat:not(:first-child) {
+			border-left: none;
+			border-top: 1px solid var(--tc-border);
 		}
 
 		.stat-card {
