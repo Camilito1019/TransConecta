@@ -10,7 +10,7 @@ import {
   eliminarTrayecto,
   listarAsignaciones
 } from "../controllers/trayecto.controller.js";
-import { verifyToken, puedeCrear, puedeModificar } from "../middleware/auth.middleware.js";
+import { verifyToken, requierePermiso } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -77,7 +77,7 @@ const router = express.Router();
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  */
-router.post("/trayectos", verifyToken, puedeCrear, crearTrayecto);
+router.post("/trayectos", verifyToken, requierePermiso('trayectos', 'crear'), crearTrayecto);
 
 /**
  * @swagger
@@ -99,7 +99,7 @@ router.post("/trayectos", verifyToken, puedeCrear, crearTrayecto);
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
-router.get("/trayectos", verifyToken, listarTrayectos);
+router.get("/trayectos", verifyToken, requierePermiso('trayectos', 'ver'), listarTrayectos);
 
 /**
  * @swagger
@@ -163,7 +163,7 @@ router.get("/trayectos", verifyToken, listarTrayectos);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.put("/trayectos/:id_trayecto", verifyToken, puedeModificar, actualizarTrayecto);
+router.put("/trayectos/:id_trayecto", verifyToken, requierePermiso('trayectos', 'editar'), actualizarTrayecto);
 
 /**
  * @swagger
@@ -190,7 +190,7 @@ router.put("/trayectos/:id_trayecto", verifyToken, puedeModificar, actualizarTra
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.delete("/trayectos/:id_trayecto", verifyToken, puedeModificar, eliminarTrayecto);
+router.delete("/trayectos/:id_trayecto", verifyToken, requierePermiso('trayectos', 'eliminar'), eliminarTrayecto);
 
 /**
  * @swagger
@@ -253,7 +253,7 @@ router.delete("/trayectos/:id_trayecto", verifyToken, puedeModificar, eliminarTr
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  */
-router.post("/asignaciones", verifyToken, puedeCrear, asignarTrayecto);
+router.post("/asignaciones", verifyToken, requierePermiso('asignaciones', 'crear'), asignarTrayecto);
 
 /**
  * @swagger
@@ -275,7 +275,7 @@ router.post("/asignaciones", verifyToken, puedeCrear, asignarTrayecto);
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
-router.get("/asignaciones", verifyToken, listarAsignaciones);
+router.get("/asignaciones", verifyToken, requierePermiso('asignaciones', 'ver'), listarAsignaciones);
 
 /**
  * @swagger
@@ -304,7 +304,7 @@ router.get("/asignaciones", verifyToken, listarAsignaciones);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/asignaciones/:id_asignacion", verifyToken, verTrayectoAsignado);
+router.get("/asignaciones/:id_asignacion", verifyToken, requierePermiso('asignaciones', 'ver'), verTrayectoAsignado);
 
 /**
  * @swagger
@@ -366,7 +366,7 @@ router.get("/asignaciones/:id_asignacion", verifyToken, verTrayectoAsignado);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.put("/asignaciones/:id_asignacion", verifyToken, puedeModificar, actualizarAsignacion);
+router.put("/asignaciones/:id_asignacion", verifyToken, requierePermiso('asignaciones', 'editar'), actualizarAsignacion);
 
 /**
  * @swagger
@@ -393,6 +393,6 @@ router.put("/asignaciones/:id_asignacion", verifyToken, puedeModificar, actualiz
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.delete("/asignaciones/:id_asignacion", verifyToken, puedeModificar, desasignarTrayecto);
+router.delete("/asignaciones/:id_asignacion", verifyToken, requierePermiso('asignaciones', 'eliminar'), desasignarTrayecto);
 
 export default router;

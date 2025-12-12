@@ -6,6 +6,7 @@ export const MODULOS = [
   'usuarios',
   'clientes',
   'roles',
+  'modulos',
   'vehiculos',
   'conductores',
   'trayectos',
@@ -24,6 +25,7 @@ const defaultConfig = {
     usuarios: { sidebar: true, acciones: { ver: true, crear: true, editar: false, eliminar: false, desactivar: false } },
     clientes: { sidebar: false, acciones: { ver: false, crear: false, editar: false, eliminar: false, desactivar: false } },
     roles: { sidebar: false, acciones: { ver: false, crear: false, editar: false, eliminar: false, desactivar: false } },
+    modulos: { sidebar: false, acciones: { ver: false, crear: false, editar: false, eliminar: false, desactivar: false } },
     vehiculos: { sidebar: true, acciones: { ver: true, crear: true, editar: false, eliminar: false, desactivar: false } },
     conductores: { sidebar: true, acciones: { ver: true, crear: true, editar: false, eliminar: false, desactivar: false } },
     trayectos: { sidebar: true, acciones: { ver: true, crear: true, editar: false, eliminar: false, desactivar: false } },
@@ -35,6 +37,7 @@ const defaultConfig = {
     usuarios: { sidebar: false, acciones: { ver: false, crear: false, editar: false, eliminar: false, desactivar: false } },
     clientes: { sidebar: false, acciones: { ver: false, crear: false, editar: false, eliminar: false, desactivar: false } },
     roles: { sidebar: false, acciones: { ver: false, crear: false, editar: false, eliminar: false, desactivar: false } },
+    modulos: { sidebar: false, acciones: { ver: false, crear: false, editar: false, eliminar: false, desactivar: false } },
     vehiculos: { sidebar: false, acciones: { ver: false, crear: false, editar: false, eliminar: false, desactivar: false } },
     conductores: { sidebar: false, acciones: { ver: false, crear: false, editar: false, eliminar: false, desactivar: false } },
     trayectos: { sidebar: false, acciones: { ver: false, crear: false, editar: false, eliminar: false, desactivar: false } },
@@ -141,7 +144,8 @@ export function puedeVerModulo(modulo, rol) {
   const role = (rol || '').toUpperCase();
   const cfgRol = getConfigForRol(role);
   const moduloCfg = cfgRol?.[modulo];
-  return moduloCfg?.sidebar === true;
+  // "Ver módulo" implica: visible en menú (sidebar) y permiso explícito de lectura (ver)
+  return moduloCfg?.sidebar === true && moduloCfg?.acciones?.ver === true;
 }
 
 export function puedeAccionModulo(modulo, accion, rol) {

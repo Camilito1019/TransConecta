@@ -8,17 +8,17 @@ import {
   activarCliente,
   eliminarCliente
 } from "../controllers/cliente.controller.js";
-import { verifyToken, soloAdministrador, puedeCrear } from "../middleware/auth.middleware.js";
+import { verifyToken, requierePermiso } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
 // CRUD de clientes (lectura para admins/coordinadores; gestión solo admin)
-router.post("/clientes", verifyToken, soloAdministrador, crearCliente);
-router.get("/clientes", verifyToken, puedeCrear, listarClientes);
-router.get("/clientes/:id_cliente", verifyToken, puedeCrear, verCliente);
-router.put("/clientes/:id_cliente", verifyToken, soloAdministrador, actualizarCliente);
-router.patch("/clientes/:id_cliente/desactivar", verifyToken, soloAdministrador, desactivarCliente);
-router.patch("/clientes/:id_cliente/activar", verifyToken, soloAdministrador, activarCliente);
-router.delete("/clientes/:id_cliente", verifyToken, soloAdministrador, eliminarCliente);
+router.post("/clientes", verifyToken, requierePermiso('clientes', 'crear'), crearCliente);
+router.get("/clientes", verifyToken, requierePermiso('clientes', 'ver'), listarClientes);
+router.get("/clientes/:id_cliente", verifyToken, requierePermiso('clientes', 'ver'), verCliente);
+router.put("/clientes/:id_cliente", verifyToken, requierePermiso('clientes', 'editar'), actualizarCliente);
+router.patch("/clientes/:id_cliente/desactivar", verifyToken, requierePermiso('clientes', 'desactivar'), desactivarCliente);
+router.patch("/clientes/:id_cliente/activar", verifyToken, requierePermiso('clientes', 'desactivar'), activarCliente);
+router.delete("/clientes/:id_cliente", verifyToken, requierePermiso('clientes', 'eliminar'), eliminarCliente);
 
 export default router;

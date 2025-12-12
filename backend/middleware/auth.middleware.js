@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { db } from '../config/db.js';
+import { obtenerPermisosRolDesdeDB } from '../config/modulos.config.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'transconecta_secret_key_2024';
 
@@ -56,6 +57,14 @@ export const verifyToken = async (req, res, next) => {
       nombre_rol: usuario.nombre_rol
     };
 
+    // Cargar permisos por módulo/acción desde la tabla modulo_permiso (fuente de verdad)
+    try {
+      req.permisos_modulos = await obtenerPermisosRolDesdeDB(req.usuario.nombre_rol);
+    } catch (permError) {
+      console.error('Error cargando permisos desde modulo_permiso:', permError);
+      return res.status(500).json({ error: 'Error al cargar permisos del usuario' });
+    }
+
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
@@ -73,6 +82,90 @@ export const verifyToken = async (req, res, next) => {
       error: 'Error al verificar autenticación' 
     });
   }
+};
+
+/**
+ * Middleware de autorización basado en la tabla modulo_permiso.
+ * Requiere que verifyToken haya corrido y haya cargado req.permisos_modulos.
+ *
+ * @param {string} modulo - Nombre del módulo (debe coincidir con MODULOS en modulos.config.js)
+ * @param {string} accion - Acción: ver|crear|editar|eliminar|desactivar
+ * @param {{ requireSidebar?: boolean }} options
+ */
+export const requierePermiso = (modulo, accion = 'ver', options = {}) => {
+  const { requireSidebar = false } = options;
+
+  return (req, res, next) => {
+    const rolUsuario = req.usuario?.nombre_rol;
+    if (!rolUsuario) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    const permisos = req.permisos_modulos;
+    if (!permisos || typeof permisos !== 'object') {
+      return res.status(500).json({ error: 'Permisos no cargados' });
+    }
+
+    const cfgModulo = permisos?.[modulo];
+    const sidebarOk = cfgModulo?.sidebar === true;
+    const accionOk = cfgModulo?.acciones?.[accion] === true;
+
+    const permitido = (requireSidebar ? sidebarOk : true) && accionOk;
+    if (!permitido) {
+      return res.status(403).json({
+        error: 'No tienes permisos para realizar esta acción',
+        modulo,
+        accion,
+        rol: rolUsuario
+      });
+    }
+
+    next();
+  };
+};
+
+function tienePermisoEnRequest(req, modulo, accion = 'ver', requireSidebar = false) {
+  const permisos = req.permisos_modulos;
+  if (!permisos || typeof permisos !== 'object') return false;
+  const cfgModulo = permisos?.[modulo];
+  const sidebarOk = cfgModulo?.sidebar === true;
+  const accionOk = cfgModulo?.acciones?.[accion] === true;
+  return (requireSidebar ? sidebarOk : true) && accionOk;
+}
+
+/**
+ * Permite el acceso si se cumple AL MENOS UNO de los permisos requeridos.
+ *
+ * @param {Array<{ modulo: string, accion?: string }>} requeridos
+ * @param {{ requireSidebar?: boolean }} options
+ */
+export const requiereAlgunoPermiso = (requeridos, options = {}) => {
+  const { requireSidebar = false } = options;
+
+  return (req, res, next) => {
+    const rolUsuario = req.usuario?.nombre_rol;
+    if (!rolUsuario) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!Array.isArray(requeridos) || requeridos.length === 0) {
+      return res.status(500).json({ error: 'Configuración de permisos inválida' });
+    }
+
+    const permitido = requeridos.some((r) =>
+      tienePermisoEnRequest(req, r.modulo, r.accion || 'ver', requireSidebar)
+    );
+
+    if (!permitido) {
+      return res.status(403).json({
+        error: 'No tienes permisos para realizar esta acción',
+        rol: rolUsuario,
+        requiere: requeridos
+      });
+    }
+
+    next();
+  };
 };
 
 /**
@@ -192,5 +285,7 @@ export default {
   puedeCrear,
   puedeModificar,
   accesoHSEQ,
-  verificarAccion
+  verificarAccion,
+  requierePermiso,
+  requiereAlgunoPermiso
 };

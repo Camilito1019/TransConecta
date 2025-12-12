@@ -2,7 +2,7 @@
   import { auth, logout } from '../lib/stores.js';
   import { goto } from '$app/navigation';
   import { createEventDispatcher } from 'svelte';
-  import { esAdministrador } from '../lib/permisos.js';
+  import { puedeAccion } from '../lib/permisos.js';
 
   const dispatch = createEventDispatcher();
 
@@ -13,12 +13,13 @@
   }
 
   function goToDashboard() {
-    // HSEQ no puede acceder al dashboard
-    const rolActual = $auth.usuario?.nombre_rol?.toUpperCase();
-    if (rolActual === 'HSEQ') {
-      return; // No hacer nada
+    if (puedeAccion('dashboard', 'ver')) {
+      goto('/');
+      return;
     }
-    goto('/');
+    if (puedeAccion('registroHoras', 'ver')) {
+      goto('/operaciones/horas');
+    }
   }
 
   function handleLogout() {
@@ -60,7 +61,7 @@
         <span class="ms-icon">menu</span>
       </button>
 
-      {#if $auth.usuario?.nombre_rol?.toUpperCase() === 'HSEQ'}
+      {#if !puedeAccion('dashboard', 'ver')}
         <div class="brand brand-disabled">
           <div class="brand-mark">TC</div>
           <div class="brand-text">
@@ -100,7 +101,7 @@
               <span class="ms-icon">vpn_key</span>
               <span>Cambiar contraseña</span>
             </button>
-            {#if esAdministrador()}
+            {#if puedeAccion('modulos', 'ver')}
               <button class="menu-item" on:click={goModulos}>
                 <span class="ms-icon">view_quilt</span>
                 <span>Módulos</span>

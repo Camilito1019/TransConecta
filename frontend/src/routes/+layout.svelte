@@ -94,11 +94,7 @@
 	// Traer permisos de módulos una vez que tengamos perfil cargado
 	$: if (mounted && $auth.isAuthenticated && perfilCargado && !modulosCargados) {
 		const rol = $auth.usuario?.nombre_rol?.toUpperCase();
-		const loader = rol === 'ADMINISTRADOR'
-			? cargarConfigModulos()
-			: rol
-				? cargarConfigRol(rol)
-				: Promise.resolve();
+		const loader = rol ? cargarConfigRol(rol) : Promise.resolve();
 
 		loader
 			.then(() => { modulosCargados = true; })
@@ -185,10 +181,22 @@
 					</div>
 				</main>
 			{:else if isAuthed && perfilCargado}
-				<Sidebar open={sidebarOpen} />
-				<main class="content">
-					<slot />
-				</main>
+				{#if modulosCargados}
+					<Sidebar open={sidebarOpen} />
+					<main class="content">
+						<slot />
+					</main>
+				{:else}
+					<!-- Esperar permisos para evitar bloqueos falsos por defaults -->
+					<main class="content full-width">
+						<div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
+							<div style="text-align: center;">
+								<div class="spinner" style="margin: 0 auto 16px;"></div>
+								<p>Cargando permisos...</p>
+							</div>
+						</div>
+					</main>
+				{/if}
 			{:else if isAuthed && !perfilCargado}
 				<!-- Mostrar un loading mientras se carga el perfil -->
 				<main class="content full-width">

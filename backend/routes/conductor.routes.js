@@ -12,7 +12,7 @@ import {
   registrarHorasConduccion,
   registrarAlertaFatiga
 } from "../controllers/conductor.controller.js";
-import { verifyToken, puedeCrear, puedeModificar, accesoHSEQ } from "../middleware/auth.middleware.js";
+import { verifyToken, requierePermiso, requiereAlgunoPermiso } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -76,7 +76,7 @@ const router = express.Router();
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  */
-router.post("/conductores", verifyToken, puedeCrear, crearConductor);
+router.post("/conductores", verifyToken, requierePermiso('conductores', 'crear'), crearConductor);
 
 /**
  * @swagger
@@ -98,7 +98,16 @@ router.post("/conductores", verifyToken, puedeCrear, crearConductor);
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
-router.get("/conductores", verifyToken, listarConductores);
+router.get(
+  "/conductores",
+  verifyToken,
+  requiereAlgunoPermiso([
+    { modulo: 'conductores', accion: 'ver' },
+    { modulo: 'registroHoras', accion: 'ver' },
+    { modulo: 'registroHoras', accion: 'crear' }
+  ]),
+  listarConductores
+);
 
 /**
  * @swagger
@@ -127,7 +136,7 @@ router.get("/conductores", verifyToken, listarConductores);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/conductores/:id_conductor", verifyToken, obtenerConductor);
+router.get("/conductores/:id_conductor", verifyToken, requierePermiso('conductores', 'ver'), obtenerConductor);
 
 /**
  * @swagger
@@ -187,7 +196,7 @@ router.get("/conductores/:id_conductor", verifyToken, obtenerConductor);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.put("/conductores/:id_conductor", verifyToken, puedeModificar, actualizarConductor);
+router.put("/conductores/:id_conductor", verifyToken, requierePermiso('conductores', 'editar'), actualizarConductor);
 
 /**
  * @swagger
@@ -214,7 +223,7 @@ router.put("/conductores/:id_conductor", verifyToken, puedeModificar, actualizar
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.patch("/conductores/:id_conductor/desactivar", verifyToken, puedeModificar, desactivarConductor);
+router.patch("/conductores/:id_conductor/desactivar", verifyToken, requierePermiso('conductores', 'desactivar'), desactivarConductor);
 
 /**
  * @swagger
@@ -241,7 +250,7 @@ router.patch("/conductores/:id_conductor/desactivar", verifyToken, puedeModifica
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.patch("/conductores/:id_conductor/activar", verifyToken, puedeModificar, activarConductor);
+router.patch("/conductores/:id_conductor/activar", verifyToken, requierePermiso('conductores', 'desactivar'), activarConductor);
 
 /**
  * @swagger
@@ -268,7 +277,7 @@ router.patch("/conductores/:id_conductor/activar", verifyToken, puedeModificar, 
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.delete("/conductores/:id_conductor", verifyToken, puedeModificar, eliminarConductor);
+router.delete("/conductores/:id_conductor", verifyToken, requierePermiso('conductores', 'eliminar'), eliminarConductor);
 
 /**
  * @swagger
@@ -293,7 +302,16 @@ router.delete("/conductores/:id_conductor", verifyToken, puedeModificar, elimina
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/conductores/:id_conductor/detalles", verifyToken, verDetallesConductor);
+router.get(
+  "/conductores/:id_conductor/detalles",
+  verifyToken,
+  requiereAlgunoPermiso([
+    { modulo: 'conductores', accion: 'ver' },
+    { modulo: 'registroHoras', accion: 'ver' },
+    { modulo: 'registroHoras', accion: 'crear' }
+  ]),
+  verDetallesConductor
+);
 
 /**
  * @swagger
@@ -318,7 +336,16 @@ router.get("/conductores/:id_conductor/detalles", verifyToken, verDetallesConduc
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/conductores/:id_conductor/historial", verifyToken, obtenerHistorialConductor);
+router.get(
+  "/conductores/:id_conductor/historial",
+  verifyToken,
+  requiereAlgunoPermiso([
+    { modulo: 'conductores', accion: 'ver' },
+    { modulo: 'registroHoras', accion: 'ver' },
+    { modulo: 'registroHoras', accion: 'crear' }
+  ]),
+  obtenerHistorialConductor
+);
 
 /**
  * @swagger
@@ -363,7 +390,7 @@ router.get("/conductores/:id_conductor/historial", verifyToken, obtenerHistorial
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  */
-router.post("/conductores/:id_conductor/horas", verifyToken, accesoHSEQ, registrarHorasConduccion);
+router.post("/conductores/:id_conductor/horas", verifyToken, requierePermiso('registroHoras', 'crear'), registrarHorasConduccion);
 
 /**
  * @swagger
@@ -407,6 +434,6 @@ router.post("/conductores/:id_conductor/horas", verifyToken, accesoHSEQ, registr
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  */
-router.post("/conductores/:id_conductor/alertas-fatiga", verifyToken, accesoHSEQ, registrarAlertaFatiga);
+router.post("/conductores/:id_conductor/alertas-fatiga", verifyToken, requierePermiso('registroHoras', 'crear'), registrarAlertaFatiga);
 
 export default router;

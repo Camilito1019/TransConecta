@@ -385,6 +385,7 @@
 						<option value="Gas">Gas</option>
 						<option value="Electrico">Eléctrico</option>
 						<option value="Hibrido">Híbrido</option>
+						
 					</select>
 				</label>
 				<label class="field">

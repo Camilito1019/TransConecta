@@ -15,7 +15,7 @@ import {
   descargarDocumento
 } from "../controllers/vehiculo.controller.js";
 import { upload } from "../config/multer.config.js";
-import { verifyToken, puedeCrear, puedeModificar } from "../middleware/auth.middleware.js";
+import { verifyToken, requierePermiso } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -83,7 +83,7 @@ const router = express.Router();
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  */
-router.post("/vehiculos", verifyToken, puedeCrear, crearVehiculo);
+router.post("/vehiculos", verifyToken, requierePermiso('vehiculos', 'crear'), crearVehiculo);
 
 /**
  * @swagger
@@ -105,7 +105,7 @@ router.post("/vehiculos", verifyToken, puedeCrear, crearVehiculo);
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
-router.get("/vehiculos", verifyToken, listarVehiculos);
+router.get("/vehiculos", verifyToken, requierePermiso('vehiculos', 'ver'), listarVehiculos);
 
 /**
  * @swagger
@@ -134,7 +134,7 @@ router.get("/vehiculos", verifyToken, listarVehiculos);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/vehiculos/:id_vehiculo", verifyToken, obtenerVehiculo);
+router.get("/vehiculos/:id_vehiculo", verifyToken, requierePermiso('vehiculos', 'ver'), obtenerVehiculo);
 
 /**
  * @swagger
@@ -196,7 +196,7 @@ router.get("/vehiculos/:id_vehiculo", verifyToken, obtenerVehiculo);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.put("/vehiculos/:id_vehiculo", verifyToken, puedeModificar, actualizarVehiculo);
+router.put("/vehiculos/:id_vehiculo", verifyToken, requierePermiso('vehiculos', 'editar'), actualizarVehiculo);
 
 /**
  * @swagger
@@ -223,7 +223,7 @@ router.put("/vehiculos/:id_vehiculo", verifyToken, puedeModificar, actualizarVeh
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.patch("/vehiculos/:id_vehiculo/desactivar", verifyToken, puedeModificar, desactivarVehiculo);
+router.patch("/vehiculos/:id_vehiculo/desactivar", verifyToken, requierePermiso('vehiculos', 'desactivar'), desactivarVehiculo);
 
 /**
  * @swagger
@@ -250,7 +250,7 @@ router.patch("/vehiculos/:id_vehiculo/desactivar", verifyToken, puedeModificar, 
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.patch("/vehiculos/:id_vehiculo/activar", verifyToken, puedeModificar, activarVehiculo);
+router.patch("/vehiculos/:id_vehiculo/activar", verifyToken, requierePermiso('vehiculos', 'desactivar'), activarVehiculo);
 
 /**
  * @swagger
@@ -291,7 +291,7 @@ router.patch("/vehiculos/:id_vehiculo/activar", verifyToken, puedeModificar, act
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.patch("/vehiculos/:id_vehiculo/estado", verifyToken, puedeModificar, registrarEstadoOperativo);
+router.patch("/vehiculos/:id_vehiculo/estado", verifyToken, requierePermiso('vehiculos', 'editar'), registrarEstadoOperativo);
 
 /**
  * @swagger
@@ -318,7 +318,7 @@ router.patch("/vehiculos/:id_vehiculo/estado", verifyToken, puedeModificar, regi
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.delete("/vehiculos/:id_vehiculo", verifyToken, puedeModificar, eliminarVehiculo);
+router.delete("/vehiculos/:id_vehiculo", verifyToken, requierePermiso('vehiculos', 'eliminar'), eliminarVehiculo);
 
 /**
  * @swagger
@@ -361,7 +361,7 @@ router.delete("/vehiculos/:id_vehiculo", verifyToken, puedeModificar, eliminarVe
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  */
-router.post("/vehiculos/:id_vehiculo/documentos", verifyToken, puedeModificar, upload.single("archivo"), subirDocumento);
+router.post("/vehiculos/:id_vehiculo/documentos", verifyToken, requierePermiso('vehiculos', 'editar'), upload.single("archivo"), subirDocumento);
 
 /**
  * @swagger
@@ -384,7 +384,7 @@ router.post("/vehiculos/:id_vehiculo/documentos", verifyToken, puedeModificar, u
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
-router.get("/vehiculos/:id_vehiculo/documentos", verifyToken, listarDocumentos);
+router.get("/vehiculos/:id_vehiculo/documentos", verifyToken, requierePermiso('vehiculos', 'ver'), listarDocumentos);
 
 /**
  * @swagger
@@ -409,7 +409,7 @@ router.get("/vehiculos/:id_vehiculo/documentos", verifyToken, listarDocumentos);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/documentos/:id_documento", verifyToken, obtenerDocumento);
+router.get("/documentos/:id_documento", verifyToken, requierePermiso('vehiculos', 'ver'), obtenerDocumento);
 
 /**
  * @swagger
@@ -434,7 +434,7 @@ router.get("/documentos/:id_documento", verifyToken, obtenerDocumento);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/documentos/:id_documento/descargar", verifyToken, descargarDocumento);
+router.get("/documentos/:id_documento/descargar", verifyToken, requierePermiso('vehiculos', 'ver'), descargarDocumento);
 
 /**
  * @swagger
@@ -459,6 +459,6 @@ router.get("/documentos/:id_documento/descargar", verifyToken, descargarDocument
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/vehiculos/:id_vehiculo/historial", verifyToken, obtenerHistorialVehiculo);
+router.get("/vehiculos/:id_vehiculo/historial", verifyToken, requierePermiso('vehiculos', 'ver'), obtenerHistorialVehiculo);
 
 export default router;

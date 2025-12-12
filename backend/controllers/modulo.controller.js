@@ -89,9 +89,13 @@ export const obtenerPermisosDeRol = async (req, res) => {
       return res.status(400).json({ error: 'Rol inválido' });
     }
 
-    // Usuarios no administradores solo pueden consultar su propio rol
-    if (rolUsuario && rolUsuario.toUpperCase() !== 'ADMINISTRADOR' && rolUsuario.toUpperCase() !== rolUpper) {
-      return res.status(403).json({ error: 'Solo puedes consultar permisos de tu rol' });
+    // Si se consulta un rol distinto al propio, exigir permiso de gestión de módulos (tabla-driven)
+    if (rolUsuario && rolUsuario.toUpperCase() !== rolUpper) {
+      const permisos = req.permisos_modulos;
+      const puedeGestionar = permisos?.modulos?.acciones?.ver === true || permisos?.modulos?.acciones?.editar === true;
+      if (!puedeGestionar) {
+        return res.status(403).json({ error: 'Solo puedes consultar permisos de tu rol' });
+      }
     }
 
     const config = await obtenerConfigDesdeDB();

@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { asignaciones, addNotificacion, vehiculos, conductores, trayectos, clientes } from '$lib/stores.js';
 	import { trayectoService, vehiculoService, conductorService, clienteService } from '$lib/api/services.js';
-	import { puedeCrear, puedeEditar, puedeEliminar, puedeVerModulo } from '$lib/permisos.js';
+	import { puedeCrear, puedeEditar, puedeEliminar, puedeVerModulo, puedeAccion } from '$lib/permisos.js';
 	import { modulosConfig } from '$lib/modulos.js';
 
 	let mostrarFormulario = false;
@@ -36,16 +36,54 @@
 
 	async function cargarDatos() {
 		try {
-			const [vehRes, condRes, trayRes, cliRes] = await Promise.all([
-				vehiculoService.listar(),
-				conductorService.listar(),
-				trayectoService.listar(),
-				clienteService.listar()
-			]);
-			vehiculos.update((v) => ({ ...v, items: vehRes.vehiculos || [] }));
-			conductores.update((c) => ({ ...c, items: condRes.conductores || [] }));
-			trayectos.update((t) => ({ ...t, items: trayRes.trayectos || [] }));
-			clientes.update((c) => ({ ...c, items: cliRes.clientes || [] }));
+			const puedeVerVehiculos = puedeAccion('vehiculos', 'ver');
+			const puedeVerConductores = puedeAccion('conductores', 'ver');
+			const puedeVerTrayectos = puedeAccion('trayectos', 'ver');
+			const puedeVerClientes = puedeAccion('clientes', 'ver');
+
+			// Inicializar stores vacíos cuando no hay permiso (evita datos stale)
+			if (!puedeVerVehiculos) vehiculos.update((v) => ({ ...v, items: [] }));
+			if (!puedeVerConductores) conductores.update((c) => ({ ...c, items: [] }));
+			if (!puedeVerTrayectos) trayectos.update((t) => ({ ...t, items: [] }));
+			if (!puedeVerClientes) clientes.update((c) => ({ ...c, items: [] }));
+
+			const tareas = [];
+			if (puedeVerVehiculos) {
+				tareas.push(
+					vehiculoService.listar().then((vehRes) => {
+						vehiculos.update((v) => ({ ...v, items: vehRes.vehiculos || [] }));
+					})
+				);
+			}
+			if (puedeVerConductores) {
+				tareas.push(
+					conductorService.listar().then((condRes) => {
+						conductores.update((c) => ({ ...c, items: condRes.conductores || [] }));
+					})
+				);
+			}
+			if (puedeVerTrayectos) {
+				tareas.push(
+					trayectoService.listar().then((trayRes) => {
+						trayectos.update((t) => ({ ...t, items: trayRes.trayectos || [] }));
+					})
+				);
+			}
+			if (puedeVerClientes) {
+				tareas.push(
+					clienteService.listar().then((cliRes) => {
+						clientes.update((c) => ({ ...c, items: cliRes.clientes || [] }));
+					})
+				);
+			}
+
+			const resultados = await Promise.allSettled(tareas);
+			const fallos = resultados.filter((r) => r.status === 'rejected');
+			if (fallos.length) {
+				// No bloquear toda la pantalla por permisos parciales; mostrar una advertencia.
+				console.warn('Algunos catálogos no se pudieron cargar (permisos o error):', fallos);
+				addNotificacion('Algunos catálogos no se pudieron cargar por permisos.', 'warning');
+			}
 
 			asignaciones.update((a) => ({ ...a, loading: true }));
 			const asigRes = await trayectoService.listarAsignaciones();

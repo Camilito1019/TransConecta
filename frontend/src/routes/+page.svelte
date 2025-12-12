@@ -4,6 +4,7 @@
 	import { auth } from '$lib/stores.js';
 	import { usuarioService, vehiculoService, conductorService, trayectoService } from '../lib/api/services.js';
 	import { authService } from '$lib/api/services.js';
+	import { puedeAccion } from '$lib/permisos.js';
 
 	let stats = {
 		usuarios: 0,
@@ -14,9 +15,8 @@
 	let loading = true;
 
 	onMount(async () => {
-		// Redirigir a HSEQ a su página correspondiente
-		const rolActual = $auth.usuario?.nombre_rol?.toUpperCase();
-		if (rolActual === 'HSEQ') {
+		// Si no puede ver dashboard, intentar redirigir al primer módulo accesible
+		if (!puedeAccion('dashboard', 'ver') && puedeAccion('registroHoras', 'ver')) {
 			goto('/operaciones/horas', { replaceState: true });
 			return;
 		}
@@ -30,18 +30,20 @@
 		}
 
 		try {
-			const [usuarios, vehiculos, conductores, trayectos] = await Promise.all([
-				usuarioService.listar(),
-				vehiculoService.listar(),
-				conductorService.listar(),
-				trayectoService.listar()
-			]);
+			const tareas = [
+				puedeAccion('usuarios', 'ver') ? usuarioService.listar() : Promise.resolve(null),
+				puedeAccion('vehiculos', 'ver') ? vehiculoService.listar() : Promise.resolve(null),
+				puedeAccion('conductores', 'ver') ? conductorService.listar() : Promise.resolve(null),
+				puedeAccion('trayectos', 'ver') ? trayectoService.listar() : Promise.resolve(null)
+			];
+
+			const [usuarios, vehiculos, conductores, trayectos] = await Promise.all(tareas);
 
 			stats = {
-				usuarios: usuarios.usuarios?.length || 0,
-				vehiculos: vehiculos.vehiculos?.length || 0,
-				conductores: conductores.conductores?.length || 0,
-				trayectos: trayectos.trayectos?.length || 0
+				usuarios: usuarios?.usuarios?.length || 0,
+				vehiculos: vehiculos?.vehiculos?.length || 0,
+				conductores: conductores?.conductores?.length || 0,
+				trayectos: trayectos?.trayectos?.length || 0
 			};
 		} catch (error) {
 			console.error('Error cargando estadísticas:', error);
@@ -446,12 +448,6 @@
 		color: #e3473c;
 	}
 
-	.chevron {
-		font-size: 18px;
-		color: #c23630;
-		font-weight: 800;
-	}
-
 	.features-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -567,8 +563,5 @@
 			grid-template-columns: auto 1fr;
 		}
 
-		.chevron {
-			display: none;
-		}
 	}
 </style>

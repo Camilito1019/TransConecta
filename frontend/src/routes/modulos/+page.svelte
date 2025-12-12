@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { addNotificacion } from '$lib/stores.js';
-  import { esAdministrador, getRolActual } from '$lib/permisos.js';
+  import { puedeAccion, getRolActual } from '$lib/permisos.js';
   import {
     modulosConfig,
     modulosCargando,
@@ -21,6 +21,7 @@
     usuarios: 'Usuarios',
     clientes: 'Clientes',
     roles: 'Roles',
+    modulos: 'Permisos',
     vehiculos: 'Vehículos',
     conductores: 'Conductores',
     trayectos: 'Trayectos',
@@ -41,17 +42,19 @@
   $: rolesDisponibles = Object.keys(config || {});
 
   onMount(async () => {
-    if (!esAdministrador()) {
-      addNotificacion('Solo los administradores pueden gestionar módulos', 'error');
+    if (!puedeAccion('modulos', 'ver')) {
+      addNotificacion('No tienes permisos para gestionar permisos de módulos', 'error');
       goto('/');
       return;
     }
 
     try {
       await cargarConfigModulos();
+      sincronizarDesdeStore(rolActivo);
     } catch (error) {
       console.warn('No se pudo cargar configuración de módulos', error);
       addNotificacion('No se pudo cargar la configuración; usando valores por defecto', 'warning');
+      configLocal = clonar(getDefaultConfig()[rolActivo] || {});
     } finally {
       cargandoInicial = false;
     }
@@ -61,14 +64,30 @@
     return JSON.parse(JSON.stringify(obj || {}));
   }
 
-  // Sincronizar la vista cuando cambian el rol seleccionado o la configuración proveniente del backend
-  $: if (rolActivo && $modulosConfig && !dirty) {
-    const base = getConfigForRol(rolActivo) || getDefaultConfig()[rolActivo] || {};
+  function sincronizarDesdeStore(rol) {
+    const base = getConfigForRol(rol) || getDefaultConfig()[rol] || {};
     configLocal = clonar(base);
+    // Asegurar que todos los módulos existan
+    MODULOS.forEach(m => {
+      if (!configLocal[m]) {
+        configLocal[m] = {
+          sidebar: false,
+          acciones: Object.fromEntries(ACCIONES.map((a) => [a, false]))
+        };
+      }
+    });
+    console.log('✅ Configuración sincronizada para', rol, ':', configLocal);
+    dirty = false;
   }
 
   async function cambiarRol(event) {
     const nuevoRol = event.target.value;
+
+    if (dirty && !confirm('Tienes cambios sin guardar. ¿Deseas continuar?')) {
+      event.target.value = rolActivo;
+      return;
+    }
+
     rolActivo = nuevoRol;
     dirty = false;
 
@@ -76,9 +95,12 @@
     cargandoRol = true;
     try {
       await cargarConfigRol(nuevoRol);
+      sincronizarDesdeStore(nuevoRol);
+      addNotificacion(`Permisos cargados para ${nuevoRol}`, 'info');
     } catch (error) {
       console.error('No se pudo cargar permisos del rol seleccionado', error);
       addNotificacion('No se pudo cargar los permisos del rol seleccionado', 'error');
+      configLocal = clonar(getDefaultConfig()[nuevoRol] || {});
     } finally {
       cargandoRol = false;
     }
@@ -91,61 +113,114 @@
         acciones: Object.fromEntries(ACCIONES.map((a) => [a, false]))
       };
     }
+    if (!configLocal[modulo].acciones) {
+      configLocal[modulo].acciones = Object.fromEntries(ACCIONES.map((a) => [a, false]));
+    }
   }
 
   function toggleSidebar(modulo) {
     asegurarModulo(modulo);
+    const estadoActual = configLocal[modulo]?.sidebar || false;
+    const nuevoEstado = !estadoActual;
+    
+    // Crear nueva referencia para forzar reactividad
     configLocal = {
       ...configLocal,
       [modulo]: {
         ...configLocal[modulo],
-        sidebar: !configLocal[modulo].sidebar
+        sidebar: nuevoEstado
       }
     };
+
     dirty = true;
+    console.log(`🔄 Toggle sidebar ${modulo}: ${estadoActual} -> ${nuevoEstado}`);
   }
 
   function toggleAccion(modulo, accion) {
     asegurarModulo(modulo);
-    const acciones = { ...configLocal[modulo].acciones, [accion]: !configLocal[modulo].acciones?.[accion] };
+    const estadoActual = configLocal[modulo]?.acciones?.[accion] || false;
+    const nuevoEstado = !estadoActual;
+    
+    // Crear nueva referencia para forzar reactividad
     configLocal = {
       ...configLocal,
-      [modulo]: { ...configLocal[modulo], acciones }
+      [modulo]: {
+        ...configLocal[modulo],
+        acciones: {
+          ...configLocal[modulo].acciones,
+          [accion]: nuevoEstado
+        }
+      }
     };
+
     dirty = true;
+    console.log(`🔄 Toggle acción ${modulo}.${accion}: ${estadoActual} -> ${nuevoEstado}`);
   }
 
   async function guardarCambios() {
+    if (!dirty) {
+      addNotificacion('No hay cambios para guardar', 'info');
+      return;
+    }
+
+    if (!puedeAccion('modulos', 'editar')) {
+      addNotificacion('No tienes permisos para editar permisos de módulos', 'error');
+      return;
+    }
+
     guardando = true;
     try {
+      console.log('Guardando configuración para rol:', rolActivo, configLocal);
       await guardarConfigRol(rolActivo, clonar(configLocal));
-      addNotificacion('Permisos de módulos actualizados', 'success');
+      // Releer desde backend para asegurar que la vista refleje lo guardado
+      await cargarConfigRol(rolActivo);
+      sincronizarDesdeStore(rolActivo);
+      addNotificacion(`Permisos actualizados para ${rolActivo}`, 'success');
       dirty = false;
     } catch (error) {
       console.error('Error guardando permisos', error);
-      addNotificacion('No se pudo guardar la configuración', 'error');
+      addNotificacion(error.message || 'No se pudo guardar la configuración', 'error');
     } finally {
       guardando = false;
     }
   }
 
   async function resetRol() {
+    if (!confirm(`¿Estás seguro de restablecer los permisos del rol ${rolActivo} a sus valores por defecto?`)) {
+      return;
+    }
+    
+    if (!puedeAccion('modulos', 'editar')) {
+      addNotificacion('No tienes permisos para restablecer permisos', 'error');
+      return;
+    }
+
     guardando = true;
     try {
       const defaults = clonar(getDefaultConfig()[rolActivo]);
       await guardarConfigRol(rolActivo, defaults);
-      configLocal = defaults;
-      addNotificacion('Permisos restablecidos para el rol', 'success');
+      await cargarConfigRol(rolActivo);
+      sincronizarDesdeStore(rolActivo);
+      addNotificacion(`Permisos restablecidos para ${rolActivo}`, 'success');
       dirty = false;
     } catch (error) {
       console.error('Error restableciendo rol', error);
-      addNotificacion('No se pudo restablecer el rol', 'error');
+      addNotificacion(error.message || 'No se pudo restablecer el rol', 'error');
     } finally {
       guardando = false;
     }
   }
 
   async function resetTodo() {
+    if (!confirm('¿Estás seguro de restablecer TODOS los roles a sus valores por defecto? Esta acción no se puede deshacer.')) {
+      return;
+    }
+    
+    if (!puedeAccion('modulos', 'eliminar')) {
+      addNotificacion('No tienes permisos para restablecer toda la configuración', 'error');
+      return;
+    }
+
     reseteando = true;
     try {
       const normalizada = await resetConfigBackend();
@@ -154,23 +229,36 @@
       dirty = false;
     } catch (error) {
       console.error('Error restableciendo configuración', error);
-      addNotificacion('No se pudo restablecer la configuración completa', 'error');
+      addNotificacion(error.message || 'No se pudo restablecer la configuración completa', 'error');
     } finally {
       reseteando = false;
     }
   }
 
   function estadoAccion(modulo, accion) {
-    return Boolean(configLocal?.[modulo]?.acciones?.[accion]);
+    const estado = Boolean(configLocal?.[modulo]?.acciones?.[accion]);
+    return estado;
   }
 
   function estadoSidebar(modulo) {
-    return Boolean(configLocal?.[modulo]?.sidebar);
+    const estado = Boolean(configLocal?.[modulo]?.sidebar);
+    return estado;
+  }
+
+  // Logs reactivos para debug
+  $: if (configLocal && Object.keys(configLocal).length > 0) {
+    console.log('📊 ConfigLocal actualizado:', JSON.parse(JSON.stringify(configLocal)));
+    console.log('📈 Módulos cargados:', Object.keys(configLocal).length);
+  }
+
+  $: if (dirty) {
+    console.log('💾 Hay cambios sin guardar');
   }
 </script>
 
 <svelte:head>
   <title>Configurar Módulos - TransConecta</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </svelte:head>
 
 <div class="page-shell">
@@ -182,11 +270,16 @@
       <p class="eyebrow">Permisos</p>
       <h1>Configurar visibilidad y acciones</h1>
       <p class="lede">Activa qué módulos aparecen en el sidebar y qué acciones (ver, editar, eliminar, desactivar) están disponibles por rol.</p>
+      {#if dirty}
+        <p class="cambios-pendientes">⚠️ Tienes cambios sin guardar</p>
+      {/if}
     </div>
     <div class="hero-actions">
       <button class="ghost" on:click={resetRol} disabled={guardando || $modulosCargando}>Restablecer rol</button>
       <button class="outline" on:click={resetTodo} disabled={reseteando || $modulosCargando}>Restablecer todo</button>
-      <button class="primary" on:click={guardarCambios} disabled={guardando || $modulosCargando}>Guardar cambios</button>
+      <button class="primary" on:click={guardarCambios} disabled={guardando || $modulosCargando || !dirty}>
+        {guardando ? 'Guardando...' : 'Guardar cambios'}
+      </button>
     </div>
   </section>
 
@@ -210,35 +303,35 @@
       </div>
     {:else}
       <div class="grid">
-        {#each MODULOS as modulo}
+        {#each MODULOS as modulo (modulo)}
           <div class="card">
             <div class="card-head">
               <div>
                 <p class="label">{etiquetas[modulo] || modulo}</p>
-                <h3>{estadoSidebar(modulo) ? 'Visible en menú' : 'Oculto en menú'}</h3>
+                <h3>{Boolean(configLocal?.[modulo]?.sidebar) ? 'Visible en menú' : 'Oculto en menú'}</h3>
               </div>
               <button
                 type="button"
-                class={`toggle ${estadoSidebar(modulo) ? 'on' : ''}`}
-                aria-pressed={estadoSidebar(modulo)}
+                class={`toggle ${Boolean(configLocal?.[modulo]?.sidebar) ? 'on' : ''}`}
+                aria-pressed={Boolean(configLocal?.[modulo]?.sidebar)}
                 on:click={() => toggleSidebar(modulo)}
-                disabled={guardando}
+                disabled={guardando || reseteando || cargandoRol}
               >
-                <span>{estadoSidebar(modulo) ? 'On' : 'Off'}</span>
+                <span>{Boolean(configLocal?.[modulo]?.sidebar) ? 'On' : 'Off'}</span>
                 <span class="thumb"></span>
               </button>
             </div>
 
             <div class="acciones">
-              {#each ACCIONES as accion}
+              {#each ACCIONES as accion (accion)}
                 <button
                   type="button"
-                  class={`chip ${estadoAccion(modulo, accion) ? 'chip-on' : 'chip-off'}`}
-                  aria-pressed={estadoAccion(modulo, accion)}
+                  class={`chip ${Boolean(configLocal?.[modulo]?.acciones?.[accion]) ? 'chip-on' : 'chip-off'}`}
+                  aria-pressed={Boolean(configLocal?.[modulo]?.acciones?.[accion])}
                   on:click={() => toggleAccion(modulo, accion)}
-                  disabled={guardando}
+                  disabled={guardando || reseteando || cargandoRol}
                 >
-                  <span class="ms-icon">{estadoAccion(modulo, accion) ? 'check_circle' : 'block'}</span>
+                  <span class="ms-icon">{Boolean(configLocal?.[modulo]?.acciones?.[accion]) ? 'check_circle' : 'block'}</span>
                   <span>{accion}</span>
                 </button>
               {/each}
@@ -262,6 +355,17 @@
   .hero-text h1 { margin: 6px 0 6px 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
   .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; color: #a33b36; font-weight: 800; margin: 0; }
   .lede { margin: 0; color: #4f4f4f; font-size: 14px; max-width: 520px; }
+  .cambios-pendientes { 
+    margin: 8px 0 0 0; 
+    color: #e3473c; 
+    font-size: 13px; 
+    font-weight: 700;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
   .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
   .panel { position: relative; z-index: 1; background: #fff; border-radius: 16px; border: 1px solid #f1f1f1; box-shadow: 0 14px 40px rgba(0,0,0,0.04); padding: 18px; }
@@ -281,7 +385,20 @@
   .chip:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(227, 71, 60, 0.12); }
   .chip-on { background: #f2fcf6; border-color: #cce8d8; color: #1d5a39; }
   .chip-off { background: #fff1f1; color: #a33b36; }
-  .chip .ms-icon { font-size: 18px; }
+  .chip .ms-icon { 
+    font-size: 18px; 
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+  }
 
   .toggle { min-width: 82px; display: inline-flex; align-items: center; gap: 10px; justify-content: space-between; padding: 8px 10px; border-radius: 999px; border: 1px solid #f0d8d3; background: #fff; cursor: pointer; font-weight: 800; color: #a33b36; }
   .toggle .thumb { width: 18px; height: 18px; border-radius: 999px; background: #e3473c; box-shadow: 0 6px 12px rgba(227, 71, 60, 0.32); transform: translateX(0); transition: transform 0.16s ease; }

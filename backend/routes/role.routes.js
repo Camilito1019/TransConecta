@@ -9,7 +9,7 @@ import {
   obtenerUsuariosConRoles,
   eliminarRol
 } from "../controllers/role.controller.js";
-import { verifyToken, puedeModificar } from "../middleware/auth.middleware.js";
+import { verifyToken, requierePermiso, requiereAlgunoPermiso } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -33,7 +33,19 @@ const router = express.Router();
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
-router.get("/roles", verifyToken, obtenerRoles);
+router.get(
+  "/roles",
+  verifyToken,
+  requiereAlgunoPermiso([
+    { modulo: "roles", accion: "ver" },
+    { modulo: "usuarios", accion: "ver" },
+    { modulo: "usuarios", accion: "crear" },
+    { modulo: "usuarios", accion: "editar" },
+    { modulo: "usuarios", accion: "desactivar" },
+    { modulo: "usuarios", accion: "eliminar" }
+  ]),
+  obtenerRoles
+);
 
 /**
  * @swagger
@@ -92,7 +104,7 @@ router.get("/roles", verifyToken, obtenerRoles);
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  */
-router.post("/roles", verifyToken, puedeModificar, crearRol);
+router.post("/roles", verifyToken, requierePermiso('roles', 'crear'), crearRol);
 
 /**
  * @swagger
@@ -121,7 +133,19 @@ router.post("/roles", verifyToken, puedeModificar, crearRol);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/roles/:id_rol", verifyToken, obtenerRolPorId);
+router.get(
+  "/roles/:id_rol",
+  verifyToken,
+  requiereAlgunoPermiso([
+    { modulo: "roles", accion: "ver" },
+    { modulo: "usuarios", accion: "ver" },
+    { modulo: "usuarios", accion: "crear" },
+    { modulo: "usuarios", accion: "editar" },
+    { modulo: "usuarios", accion: "desactivar" },
+    { modulo: "usuarios", accion: "eliminar" }
+  ]),
+  obtenerRolPorId
+);
 
 /**
  * @swagger
@@ -180,7 +204,7 @@ router.get("/roles/:id_rol", verifyToken, obtenerRolPorId);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.put("/roles/:id_rol", verifyToken, puedeModificar, actualizarRol);
+router.put("/roles/:id_rol", verifyToken, requierePermiso('roles', 'editar'), actualizarRol);
 
 /**
  * @swagger
@@ -215,7 +239,7 @@ router.put("/roles/:id_rol", verifyToken, puedeModificar, actualizarRol);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.delete("/roles/:id_rol", verifyToken, puedeModificar, eliminarRol);
+router.delete("/roles/:id_rol", verifyToken, requierePermiso('roles', 'eliminar'), eliminarRol);
 
 /**
  * @swagger
@@ -263,7 +287,7 @@ router.delete("/roles/:id_rol", verifyToken, puedeModificar, eliminarRol);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.put("/usuarios/:id_usuario/rol", verifyToken, puedeModificar, asignarRolAUsuario);
+router.put("/usuarios/:id_usuario/rol", verifyToken, requierePermiso('roles', 'editar'), asignarRolAUsuario);
 
 /**
  * @swagger
@@ -292,7 +316,7 @@ router.put("/usuarios/:id_usuario/rol", verifyToken, puedeModificar, asignarRolA
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/usuarios/:id_usuario/con-rol", verifyToken, obtenerUsuarioConRol);
+router.get("/usuarios/:id_usuario/con-rol", verifyToken, requierePermiso('roles', 'ver'), obtenerUsuarioConRol);
 
 /**
  * @swagger
@@ -314,6 +338,6 @@ router.get("/usuarios/:id_usuario/con-rol", verifyToken, obtenerUsuarioConRol);
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
-router.get("/usuarios/con-roles/todos", verifyToken, obtenerUsuariosConRoles);
+router.get("/usuarios/con-roles/todos", verifyToken, requierePermiso('roles', 'ver'), obtenerUsuariosConRoles);
 
 export default router;

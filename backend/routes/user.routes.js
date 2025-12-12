@@ -8,7 +8,7 @@ import {
     activarUsuario,
 	eliminarUsuario
 } from "../controllers/user.controller.js";
-import { verifyToken, puedeCrear, puedeModificar } from "../middleware/auth.middleware.js";
+import { verifyToken, requierePermiso } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -69,7 +69,7 @@ const router = express.Router();
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  */
-router.post("/usuarios", verifyToken, puedeCrear, registrarUsuario);
+router.post("/usuarios", verifyToken, requierePermiso('usuarios', 'crear'), registrarUsuario);
 
 /**
  * @swagger
@@ -108,7 +108,7 @@ router.post("/usuarios", verifyToken, puedeCrear, registrarUsuario);
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  */
-router.post("/register", verifyToken, puedeCrear, registrarUsuario);
+router.post("/register", verifyToken, requierePermiso('usuarios', 'crear'), registrarUsuario);
 
 /**
  * @swagger
@@ -130,7 +130,7 @@ router.post("/register", verifyToken, puedeCrear, registrarUsuario);
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
-router.get("/usuarios", verifyToken, listarUsuarios);
+router.get("/usuarios", verifyToken, requierePermiso('usuarios', 'ver'), listarUsuarios);
 
 /**
  * @swagger
@@ -159,7 +159,7 @@ router.get("/usuarios", verifyToken, listarUsuarios);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.get("/usuarios/:id_usuario", verifyToken, verUsuario);
+router.get("/usuarios/:id_usuario", verifyToken, requierePermiso('usuarios', 'ver'), verUsuario);
 
 /**
  * @swagger
@@ -210,7 +210,7 @@ router.get("/usuarios/:id_usuario", verifyToken, verUsuario);
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.put("/usuarios/:id_usuario", verifyToken, puedeModificar, actualizarUsuario);
+router.put("/usuarios/:id_usuario", verifyToken, requierePermiso('usuarios', 'editar'), actualizarUsuario);
 
 /**
  * @swagger
@@ -245,7 +245,7 @@ router.put("/usuarios/:id_usuario", verifyToken, puedeModificar, actualizarUsuar
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.patch("/usuarios/:id_usuario/inactivar", verifyToken, puedeModificar, inactivarUsuario);
+router.patch("/usuarios/:id_usuario/inactivar", verifyToken, requierePermiso('usuarios', 'desactivar'), inactivarUsuario);
 
 /**
  * @swagger
@@ -280,7 +280,7 @@ router.patch("/usuarios/:id_usuario/inactivar", verifyToken, puedeModificar, ina
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.patch("/usuarios/:id_usuario/activar", verifyToken, puedeModificar, activarUsuario);
+router.patch("/usuarios/:id_usuario/activar", verifyToken, requierePermiso('usuarios', 'desactivar'), activarUsuario);
 
 /**
  * @swagger
@@ -315,7 +315,7 @@ router.patch("/usuarios/:id_usuario/activar", verifyToken, puedeModificar, activ
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
-router.delete("/usuarios/:id_usuario", verifyToken, puedeModificar, eliminarUsuario);
+router.delete("/usuarios/:id_usuario", verifyToken, requierePermiso('usuarios', 'eliminar'), eliminarUsuario);
 
 
 export default router;
