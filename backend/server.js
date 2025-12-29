@@ -17,6 +17,7 @@ import trayectoRoutes from "./routes/trayecto.routes.js";
 import clienteRoutes from "./routes/cliente.routes.js";
 import moduloRoutes from "./routes/modulo.routes.js";
 import { bootstrapModuloPermisos } from './config/modulos.config.js';
+import { bootstrapSchema } from './config/bootstrap.schema.js';
 
 
 
@@ -25,8 +26,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configurar CORS para permitir peticiones desde el frontend
+const corsOrigins = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const defaultCorsOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175'
+];
+
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+    origin: corsOrigins.length ? corsOrigins : defaultCorsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -35,6 +48,9 @@ app.use(cors({
 app.use(express.json());
 // Servir archivos estáticos de uploads con ruta absoluta para evitar fallos por cwd
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Asegurar esquema mínimo (rol/usuario) antes de usar autenticación/permisos
+await bootstrapSchema();
 
 // Garantizar que la tabla de permisos de módulos existe y tiene valores iniciales
 await bootstrapModuloPermisos();

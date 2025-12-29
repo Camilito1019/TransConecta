@@ -263,25 +263,101 @@ export const activarVehiculo = async (req, res) => {
 
 // Eliminar vehículo
 export const eliminarVehiculo = async (req, res) => {
+  const client = await db.connect();
+  let txOpen = false;
+
   try {
     const { id_vehiculo } = req.params;
     if (!id_vehiculo || isNaN(id_vehiculo)) {
       return res.status(400).json({ error: "id_vehiculo inválido" });
     }
 
-    await limpiarDocumentosVehiculo(id_vehiculo);
+    await client.query("BEGIN");
+    txOpen = true;
 
-    const query = `DELETE FROM Vehiculo WHERE id_vehiculo = $1 RETURNING id_vehiculo, placa, marca, modelo`;
-    const result = await db.query(query, [id_vehiculo]);
+    // Si el vehículo tiene una asignación activa, no permitir eliminar.
+    const asignacionActiva = await client.query(
+      `SELECT 1 FROM Vehiculo_Conductor_Trayecto WHERE id_vehiculo = $1 LIMIT 1`,
+      [id_vehiculo]
+    );
+    if (asignacionActiva.rows.length > 0) {
+      await client.query("ROLLBACK");
+      txOpen = false;
+      return res.status(409).json({
+        error: "No se puede eliminar el vehículo porque tiene un trayecto/asignación activa. Desasígnalo primero.",
+        codigo: "VEHICULO_ASIGNADO"
+      });
+    }
+
+    // Capturar documentos antes de borrarlos para eliminar archivos luego del COMMIT.
+    const docsRes = await client.query(
+      `SELECT id_documento, archivo_url FROM documento_vehiculo WHERE id_vehiculo = $1`,
+      [id_vehiculo]
+    );
+
+    await client.query(`DELETE FROM documento_vehiculo WHERE id_vehiculo = $1`, [id_vehiculo]);
+    await client.query(`DELETE FROM Historial_Vehiculo WHERE id_vehiculo = $1`, [id_vehiculo]);
+
+    const result = await client.query(
+      `DELETE FROM Vehiculo WHERE id_vehiculo = $1 RETURNING id_vehiculo, placa, marca, modelo`,
+      [id_vehiculo]
+    );
 
     if (result.rows.length === 0) {
+      await client.query("ROLLBACK");
+      txOpen = false;
       return res.status(404).json({ error: "Vehículo no encontrado" });
+    }
+
+    await client.query("COMMIT");
+    txOpen = false;
+
+    // Limpieza de archivos (best effort, fuera de transacción)
+    const base = path.resolve('uploads/vehiculos');
+    const docs = docsRes.rows || [];
+    for (const doc of docs) {
+      const rel = (doc.archivo_url || '').replace('/uploads/vehiculos/', '');
+      const absPath = path.join(base, rel);
+      try {
+        if (rel) await fs.unlink(absPath);
+      } catch (_) {
+        // Ignorar si no existe o no se puede borrar
+      }
+    }
+
+    if (docs.length > 0) {
+      const firstRel = (docs[0].archivo_url || '').replace('/uploads/vehiculos/', '');
+      const folder = path.join(base, path.dirname(firstRel));
+      try {
+        if (firstRel) await fs.rm(folder, { recursive: true, force: true });
+      } catch (_) {
+        /* ignore */
+      }
     }
 
     res.json({ mensaje: "Vehículo eliminado", vehiculo: result.rows[0] });
   } catch (error) {
+    if (txOpen) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    // FK violation (Postgres): normalmente ocurre si hay registros relacionados.
+    if (error?.code === '23503') {
+      return res.status(409).json({
+        error:
+          "No se puede eliminar el vehículo porque existen registros relacionados (por ejemplo, asignaciones o historial).",
+        codigo: "FK_VIOLATION"
+      });
+    }
+
     console.error("Error eliminando vehículo:", error);
     res.status(500).json({ error: "Error al eliminar vehículo" });
+  } finally {
+    client.release();
   }
 };
 

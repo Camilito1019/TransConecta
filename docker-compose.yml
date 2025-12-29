@@ -1,17 +1,20 @@
-version: '3.8'
-
 services:
   postgres:
-    image: postgres:15-alpine
+    # Usamos PostgreSQL 17 porque tu backup está en formato PGDMP v1.16 (requiere pg_restore >= 17)
+    image: postgres:17-alpine
     container_name: transconecta-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: admin123
       POSTGRES_DB: transconecta
-    ports:
-      - "5432:5432"
+    # No publicamos el puerto 5432 para evitar choque con un Postgres local.
+    # Si necesitas conectarte desde tu PC, cambia a: "5433:5432".
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Scripts de inicialización (solo se ejecutan cuando el volumen está vacío)
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+      # Backups/dumps disponibles para restaurar
+      - ./backend/migrations:/backups:ro
     networks:
       - transconecta-network
     healthcheck:
@@ -19,6 +22,52 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: transconecta-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: admin123
+      DB_NAME: transconecta
+      PORT: 3000
+      # Ajusta esto si cambias el puerto del frontend o lo publicas en un dominio.
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+    networks:
+      - transconecta-network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Se inyecta en build-time para el código cliente (import.meta.env)
+        VITE_API_URL: http://localhost:3001/api
+    container_name: transconecta-frontend
+    depends_on:
+      - backend
+    environment:
+      # URL interna usada por SSR dentro del contenedor
+      INTERNAL_API_URL: http://backend:3000/api
+      # Fija el origin que usa SvelteKit (evita 403: Cross-site POST form submissions are forbidden)
+      ORIGIN: http://localhost:5173
+      HOST: 0.0.0.0
+      PORT: 5173
+    ports:
+      - "5173:5173"
+    networks:
+      - transconecta-network
 
 volumes:
   postgres_data:

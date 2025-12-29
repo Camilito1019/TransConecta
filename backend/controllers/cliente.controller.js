@@ -193,31 +193,93 @@ export const activarCliente = async (req, res) => {
 };
 
 export const eliminarCliente = async (req, res) => {
+  const client = await db.connect();
+  let txOpen = false;
+
   try {
     const { id_cliente } = req.params;
     if (!id_cliente || isNaN(id_cliente)) {
       return res.status(400).json({ error: "id_cliente inválido" });
     }
 
-    // Evitar eliminar si está referenciado por trayectos
-    const refs = await db.query("SELECT 1 FROM trayecto WHERE id_cliente = $1 LIMIT 1", [id_cliente]);
-    if (refs.rows.length > 0) {
-      return res.status(409).json({ error: "No se puede eliminar: hay trayectos asociados" });
+    await client.query("BEGIN");
+    txOpen = true;
+
+    // Obtener trayectos vinculados para borrado controlado usando la tabla de asignaciones
+    const trayectosRes = await client.query(
+      `SELECT DISTINCT id_trayecto FROM Vehiculo_Conductor_Trayecto WHERE id_cliente = $1`,
+      [id_cliente]
+    );
+    const trayectoIds = trayectosRes.rows.map((r) => Number(r.id_trayecto)).filter((n) => !isNaN(n));
+    const hasTrayectos = trayectoIds.length > 0;
+
+    // Limpiar asignaciones que referencian al cliente
+    await client.query(
+      `DELETE FROM Vehiculo_Conductor_Trayecto WHERE id_cliente = $1`,
+      [id_cliente]
+    );
+
+    // Limpiar asignaciones que referencian los trayectos del cliente (por id_trayecto)
+    if (hasTrayectos) {
+      await client.query(
+        `DELETE FROM Vehiculo_Conductor_Trayecto WHERE id_trayecto = ANY($1::int[])`,
+        [trayectoIds]
+      );
     }
 
-    const result = await db.query(
+    // Limpiar Conductor_Trayecto asociados a los trayectos del cliente
+    if (hasTrayectos) {
+      await client.query(
+        `DELETE FROM Conductor_Trayecto WHERE id_trayecto = ANY($1::int[])`,
+        [trayectoIds]
+      );
+    }
+
+    // Eliminar los trayectos del cliente
+    if (hasTrayectos) {
+      await client.query(
+        `DELETE FROM trayecto WHERE id_trayecto = ANY($1::int[])`,
+        [trayectoIds]
+      );
+    }
+
+    const result = await client.query(
       `DELETE FROM cliente WHERE id_cliente = $1
        RETURNING id_cliente, nombre, telefono, estado`,
       [id_cliente]
     );
 
     if (result.rows.length === 0) {
+      await client.query("ROLLBACK");
+      txOpen = false;
       return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
+    await client.query("COMMIT");
+    txOpen = false;
+
     res.json({ mensaje: "Cliente eliminado", cliente: result.rows[0] });
   } catch (error) {
+    if (txOpen) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    // FK violation (Postgres)
+    if (error?.code === '23503') {
+      return res.status(409).json({
+        error: "No se puede eliminar el cliente porque existen registros relacionados.",
+        codigo: "FK_VIOLATION"
+      });
+    }
+
     console.error("Error eliminando cliente:", error);
-    res.status(500).json({ error: "Error al eliminar cliente" });
+    // Exponer el mensaje real para diagnosticar el 500
+    res.status(500).json({ error: error?.message || "Error al eliminar cliente" });
+  } finally {
+    client.release();
   }
 };

@@ -1,5 +1,56 @@
 import { db } from "../config/db.js";
 
+// Formatea la fecha de descanso como "2:00 PM de (DD-MM-YYYY)"
+function formatDescansoHuman(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const datePart = `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
+
+  const timePart = new Intl.DateTimeFormat("es-CO", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  })
+    .format(date)
+    .replace(".", "")
+    .toUpperCase();
+
+  return `${timePart} de (${datePart})`;
+}
+
+// Deriva ventana de fatiga sin tocar el esquema: usa últimas horas del día y umbral de fatiga
+async function conductorEnFatiga(client, id_conductor) {
+  const threshold = parseFloat(process.env.FATIGA_THRESHOLD_HORAS) || 8;
+  const descansoHoras = 6;
+
+  // Último registro de horas del conductor
+  const ultimaHora = await client.query(
+    `SELECT fecha, hora_fin FROM Horas_Conduccion WHERE id_conductor = $1 ORDER BY fecha DESC, hora_fin DESC LIMIT 1`,
+    [id_conductor]
+  );
+  if (ultimaHora.rows.length === 0) return { fatiga: false, descansoHasta: null };
+
+  const { fecha, hora_fin } = ultimaHora.rows[0];
+  const fechaStr = fecha instanceof Date ? fecha.toISOString().split("T")[0] : String(fecha || "").split("T")[0];
+  if (!hora_fin || !fechaStr) return { fatiga: false, descansoHasta: null };
+
+  const totalRes = await client.query(
+    `SELECT COALESCE(SUM(horas_manejadas), 0) AS total_horas
+     FROM Horas_Conduccion
+     WHERE id_conductor = $1 AND fecha = $2`,
+    [id_conductor, fecha]
+  );
+  const totalHoras = parseFloat(totalRes.rows[0].total_horas) || 0;
+  if (totalHoras <= threshold) return { fatiga: false, descansoHasta: null };
+
+  const finDate = new Date(`${fechaStr}T${hora_fin}`);
+  if (Number.isNaN(finDate.getTime())) return { fatiga: false, descansoHasta: null };
+
+  const descansoHasta = new Date(finDate.getTime() + descansoHoras * 60 * 60 * 1000);
+  return { fatiga: totalHoras > threshold && descansoHasta > new Date(), descansoHasta };
+}
+
 // Asignar trayecto a vehículo y conductor
 export const asignarTrayecto = async (req, res) => {
   const client = await db.connect();
@@ -34,16 +85,16 @@ export const asignarTrayecto = async (req, res) => {
       return res.status(404).json({ error: "Conductor no encontrado" });
     }
 
-    // Validar fatiga: bloquear si tiene alertas en últimas 24h
-    const alertaFatiga = await client.query(
-      `SELECT fecha_alerta FROM Alerta_Fatiga 
-       WHERE id_conductor = $1 AND fecha_alerta >= (CURRENT_TIMESTAMP - INTERVAL '24 hours')
-       ORDER BY fecha_alerta DESC LIMIT 1`,
-      [id_conductor]
-    );
-    if (alertaFatiga.rows.length > 0) {
+    // Validar fatiga derivada de las últimas horas (descanso de 6h tras superar umbral)
+    const fatiga = await conductorEnFatiga(client, id_conductor);
+    if (fatiga.fatiga) {
       await client.query("ROLLBACK");
-      return res.status(409).json({ error: "El conductor tiene alerta de fatiga reciente y no puede ser asignado" });
+      const formatted = formatDescansoHuman(fatiga.descansoHasta);
+      return res.status(409).json({
+        error: formatted
+          ? `El conductor está en fatiga hasta ${formatted}`
+          : `El conductor está en fatiga hasta ${fatiga.descansoHasta?.toISOString()}`
+      });
     }
 
     // Validar que el conductor no tenga un trayecto activo en Conductor_Trayecto
@@ -181,16 +232,16 @@ export const actualizarAsignacion = async (req, res) => {
     const conductor = await client.query("SELECT 1 FROM Conductor WHERE id_conductor = $1", [id_conductor]);
     if (conductor.rows.length === 0) throw new Error("Conductor no encontrado");
 
-    // Validar fatiga para el nuevo conductor (últimas 24h)
-    const alertaFatiga = await client.query(
-      `SELECT fecha_alerta FROM Alerta_Fatiga 
-       WHERE id_conductor = $1 AND fecha_alerta >= (CURRENT_TIMESTAMP - INTERVAL '24 hours')
-       ORDER BY fecha_alerta DESC LIMIT 1`,
-      [id_conductor]
-    );
-    if (alertaFatiga.rows.length > 0) {
+    // Validar fatiga para el nuevo conductor
+    const fatiga = await conductorEnFatiga(client, id_conductor);
+    if (fatiga.fatiga) {
       await client.query("ROLLBACK");
-      return res.status(409).json({ error: "El conductor tiene alerta de fatiga reciente y no puede ser asignado" });
+      const formatted = formatDescansoHuman(fatiga.descansoHasta);
+      return res.status(409).json({
+        error: formatted
+          ? `El conductor está en fatiga hasta ${formatted}`
+          : `El conductor está en fatiga hasta ${fatiga.descansoHasta?.toISOString()}`
+      });
     }
 
     // Validar que el conductor no tenga otro trayecto activo en Conductor_Trayecto

@@ -156,6 +156,28 @@ Git / GitHub
 
 DBeaver para administración de la BD
 
+🚀 Despliegue con Docker (recomendado)
+
+Este repo ya incluye un stack con PostgreSQL + Backend + Frontend.
+
+Comandos:
+
+- Levantar todo: `docker compose up -d --build`
+- Ver logs: `docker compose logs -f backend` / `docker compose logs -f frontend`
+- Detener: `docker compose down`
+- Borrar datos de BD (reinicio total): `docker compose down -v`
+
+URLs por defecto:
+
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3001/api
+- Swagger: http://localhost:3001/docs
+
+Notas:
+
+- PostgreSQL no publica el puerto 5432 para evitar choques con un Postgres local (el backend se conecta por red interna de Docker).
+- Si quieres cambiar el puerto público del backend, ajusta el mapeo `ports` del servicio `backend` y el `VITE_API_URL` en el build-arg del servicio `frontend` en `docker-compose.yml`.
+
 🧱 Arquitectura del Proyecto
 TransConecta/
 ├── frontend/      → Svelte

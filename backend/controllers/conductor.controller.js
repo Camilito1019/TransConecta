@@ -49,6 +49,64 @@ export const listarConductores = async (req, res) => {
   }
 };
 
+// Listar conductores en ventana de fatiga activa
+export const listarConductoresFatigaActiva = async (_req, res) => {
+  try {
+    const threshold = parseFloat(process.env.FATIGA_THRESHOLD_HORAS) || 8; // horas por defecto
+    const descansoHoras = 6;
+
+    const query = `
+      SELECT c.id_conductor, c.nombre, lh.fecha, lh.hora_fin,
+             (SELECT COALESCE(SUM(h2.horas_manejadas), 0)
+              FROM Horas_Conduccion h2
+              WHERE h2.id_conductor = c.id_conductor AND h2.fecha = lh.fecha) AS total_horas_dia
+      FROM Conductor c
+      JOIN LATERAL (
+        SELECT h.fecha, h.hora_fin, h.horas_manejadas
+        FROM Horas_Conduccion h
+        WHERE h.id_conductor = c.id_conductor
+        ORDER BY h.fecha DESC, h.hora_fin DESC
+        LIMIT 1
+      ) AS lh ON TRUE
+    `;
+
+    const { rows } = await db.query(query);
+    const now = new Date();
+
+    const conductores = rows
+      .map((r) => {
+        if (!r?.hora_fin || !r?.fecha) return null;
+        const fechaStr = r.fecha instanceof Date ? r.fecha.toISOString().split('T')[0] : String(r.fecha).split('T')[0];
+        const finDate = fechaStr ? new Date(`${fechaStr}T${r.hora_fin}`) : new Date(`${r.fecha} ${r.hora_fin}`);
+        if (Number.isNaN(finDate.getTime())) return null;
+
+        const descansoHasta = new Date(finDate.getTime() + descansoHoras * 60 * 60 * 1000);
+        const totalHorasDia = parseFloat(r.total_horas_dia) || 0;
+        const fatigaActiva = totalHorasDia > threshold && descansoHasta > now;
+        if (!fatigaActiva) return null;
+
+        return {
+          id_conductor: r.id_conductor,
+          nombre: r.nombre,
+          fecha: r.fecha,
+          hora_fin: r.hora_fin,
+          total_horas_dia: totalHorasDia,
+          descanso_inicio: finDate.toISOString(),
+          descanso_hasta: descansoHasta.toISOString(),
+          fatiga_activa: true,
+          restante_ms: Math.max(descansoHasta.getTime() - now.getTime(), 0)
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.restante_ms - b.restante_ms);
+
+    res.json({ total: conductores.length, conductores });
+  } catch (error) {
+    console.error('Error listando fatiga activa:', error);
+    res.status(500).json({ error: 'Error al listar conductores con fatiga activa' });
+  }
+};
+
 // Obtener conductor por ID
 export const obtenerConductor = async (req, res) => {
   try {
@@ -152,29 +210,47 @@ export const activarConductor = async (req, res) => {
 
 // Eliminar conductor
 export const eliminarConductor = async (req, res) => {
+  const client = await db.connect();
+  let txOpen = false;
+
   try {
     const { id_conductor } = req.params;
     if (!id_conductor || isNaN(id_conductor)) return res.status(400).json({ error: "id_conductor inválido" });
 
-    // Validar que no existan referencias activas
-    const refs = await db.query(
-      `SELECT 1 FROM Horas_Conduccion WHERE id_conductor = $1 LIMIT 1`,
-      [id_conductor]
-    );
-    if (refs.rows.length > 0) {
-      return res.status(409).json({ error: "No se puede eliminar: conductor tiene registros de horas." });
-    }
+    await client.query("BEGIN");
+    txOpen = true;
 
-    const result = await db.query(
+    // Limpiar asignaciones de trayectos
+    await client.query(`DELETE FROM Vehiculo_Conductor_Trayecto WHERE id_conductor = $1`, [id_conductor]);
+    await client.query(`DELETE FROM Conductor_Trayecto WHERE id_conductor = $1`, [id_conductor]);
+
+    // Limpiar registros de horas, alertas de fatiga e historial
+    await client.query(`DELETE FROM Horas_Conduccion WHERE id_conductor = $1`, [id_conductor]);
+    await client.query(`DELETE FROM Alerta_Fatiga WHERE id_conductor = $1`, [id_conductor]);
+    await client.query(`DELETE FROM Historial_Conductor WHERE id_conductor = $1`, [id_conductor]);
+
+    const result = await client.query(
       `DELETE FROM Conductor WHERE id_conductor = $1 RETURNING id_conductor, nombre, cedula`,
       [id_conductor]
     );
 
-    if (result.rows.length === 0) return res.status(404).json({ error: "Conductor no encontrado" });
+    if (result.rows.length === 0) {
+      await client.query("ROLLBACK");
+      txOpen = false;
+      return res.status(404).json({ error: "Conductor no encontrado" });
+    }
+
+    await client.query("COMMIT");
+    txOpen = false;
     res.json({ mensaje: "Conductor eliminado", conductor: result.rows[0] });
   } catch (error) {
+    if (txOpen) {
+      try { await client.query("ROLLBACK"); } catch (_) {}
+    }
     console.error("Error eliminando conductor:", error);
-    res.status(500).json({ error: "Error al eliminar conductor" });
+    res.status(500).json({ error: error?.message || "Error al eliminar conductor" });
+  } finally {
+    client.release();
   }
 };
 
@@ -247,14 +323,24 @@ export const obtenerHistorialConductor = async (req, res) => {
 export const registrarHorasConduccion = async (req, res) => {
   try {
     const { id_conductor } = req.params;
-    const { fecha, hora_inicio, hora_fin, horas_manejadas, observaciones } = req.body;
+    const { fecha, hora_inicio, hora_fin, observaciones } = req.body;
 
     if (!id_conductor || isNaN(id_conductor)) return res.status(400).json({ error: "id_conductor inválido" });
-    if (!fecha || !hora_inicio || !hora_fin || horas_manejadas == null) return res.status(400).json({ error: "Faltan campos requeridos" });
+    if (!fecha || !hora_inicio || !hora_fin) return res.status(400).json({ error: "Faltan campos requeridos" });
 
     // Verificar conductor existe
     const c = await db.query("SELECT id_conductor FROM Conductor WHERE id_conductor = $1", [id_conductor]);
     if (c.rows.length === 0) return res.status(404).json({ error: "Conductor no encontrado" });
+
+    // Calcular horas en backend (evita depender del cliente)
+    const parseHm = (hm) => {
+      if (!hm || !hm.includes(":")) return null;
+      const [h, m] = hm.split(":").map((v) => Number(v));
+      if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+      return h * 60 + m;
+    };
+    const minutos = (parseHm(hora_fin) ?? 0) - (parseHm(hora_inicio) ?? 0);
+    const horasCalculadas = Math.max(minutos / 60, 0);
 
     const query = `
       INSERT INTO Horas_Conduccion (id_conductor, fecha, hora_inicio, hora_fin, horas_manejadas, registrado_por, observaciones)
@@ -266,16 +352,15 @@ export const registrarHorasConduccion = async (req, res) => {
       fecha,
       hora_inicio,
       hora_fin,
-      horas_manejadas,
-      // Registrar siempre al usuario autenticado; si no hay, dejar null
+      horasCalculadas,
       req.usuario?.id_usuario || null,
       observaciones || null
     ];
     const result = await db.query(query, values);
 
-    // Registrar evento en historial
+    // Registrar evento en historial (no bloquear si falla)
     try {
-      const evento = `Registro de horas: ${horas_manejadas} horas en ${fecha}`;
+      const evento = `Registro de horas: ${horasCalculadas.toFixed(2)} horas en ${fecha}`;
       await db.query(
         `INSERT INTO Historial_Conductor (id_conductor, evento, fecha_evento) VALUES ($1, $2, CURRENT_TIMESTAMP)`,
         [id_conductor, evento]
@@ -284,7 +369,7 @@ export const registrarHorasConduccion = async (req, res) => {
       console.error('Error registrando historial conductor:', histErr);
     }
 
-    // Monitoreo de fatiga: sumar horas del mismo día y lanzar alerta si supera umbral
+    // Monitoreo de fatiga: sumar horas del mismo día y determinar ventana de descanso
     try {
       const threshold = parseFloat(process.env.FATIGA_THRESHOLD_HORAS) || 8; // horas por defecto
       const totalQuery = `
@@ -296,17 +381,26 @@ export const registrarHorasConduccion = async (req, res) => {
       const totalHoras = parseFloat(totalRes.rows[0].total_horas) || 0;
 
       let alerta = null;
+      let descansoHasta = null;
+      let fatigaActiva = false;
+
       if (totalHoras > threshold) {
-        // Crear alerta de fatiga
+        // Crear alerta de fatiga (solo registro, no cambia estado)
         const descripcion = `Superó el límite de ${threshold} horas: total ${totalHoras}h en ${fecha}`;
         const alertaRes = await db.query(
           `INSERT INTO Alerta_Fatiga (id_conductor, fecha_alerta, descripcion) VALUES ($1, CURRENT_TIMESTAMP, $2) RETURNING id_alerta, fecha_alerta, descripcion`,
           [id_conductor, descripcion]
         );
+        alerta = alertaRes.rows[0];
 
-        // Registrar en historial del conductor
+        // Calcular descanso mínimo: hora_fin + 6h (derivado, sin persistir)
+        const finDate = new Date(`${fecha}T${hora_fin}`);
+        descansoHasta = new Date(finDate.getTime() + 6 * 60 * 60 * 1000);
+        fatigaActiva = descansoHasta > new Date();
+
+        // Registrar en historial el descanso estimado
         try {
-          const eventoAlerta = `Alerta de fatiga automática: ${descripcion}`;
+          const eventoAlerta = `Alerta de fatiga automática: ${descripcion}. Descanso hasta ${descansoHasta.toISOString()}`;
           await db.query(
             `INSERT INTO Historial_Conductor (id_conductor, evento, fecha_evento) VALUES ($1, $2, CURRENT_TIMESTAMP)`,
             [id_conductor, eventoAlerta]
@@ -314,26 +408,18 @@ export const registrarHorasConduccion = async (req, res) => {
         } catch (histErr2) {
           console.error('Error registrando historial por alerta:', histErr2);
         }
-
-        // Desactivar conductor por normativa/seguridad
-        try {
-          await db.query(`UPDATE Conductor SET estado = 'inactivo' WHERE id_conductor = $1`, [id_conductor]);
-          // Registrar evento de desactivación en historial
-          await db.query(
-            `INSERT INTO Historial_Conductor (id_conductor, evento, fecha_evento) VALUES ($1, $2, CURRENT_TIMESTAMP)`,
-            [id_conductor, `Conductor desactivado automáticamente por alerta de fatiga: ${descripcion}`]
-          );
-        } catch (deactErr) {
-          console.error('Error desactivando conductor tras alerta:', deactErr);
-        }
-
-        alerta = alertaRes.rows[0];
       }
 
-      res.status(201).json({ mensaje: "Horas registradas", registro: result.rows[0], total_horas_dia: totalHoras, alerta_fatiga: alerta });
+      res.status(201).json({
+        mensaje: "Horas registradas",
+        registro: result.rows[0],
+        total_horas_dia: totalHoras,
+        alerta_fatiga: alerta,
+        descanso_hasta: descansoHasta ? descansoHasta.toISOString() : null,
+        fatiga_activa: fatigaActiva
+      });
     } catch (monitorErr) {
       console.error('Error monitoreando fatiga:', monitorErr);
-      // Responder sin alerta si falla el monitoreo
       res.status(201).json({ mensaje: "Horas registradas", registro: result.rows[0] });
     }
   } catch (error) {

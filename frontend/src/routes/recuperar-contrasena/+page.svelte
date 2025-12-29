@@ -13,6 +13,8 @@
 	let mostrarConfirmar = false;
 	let intentosRestantes = 3;
 
+	const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 	// Validaciones reactivas
 	$: contrasenaValida = nueva_contrasena && nueva_contrasena.length >= 6;
 	$: contrasenasCoinciden = nueva_contrasena && confirmar_contrasena && nueva_contrasena === confirmar_contrasena;
@@ -35,7 +37,7 @@
 		loading = true;
 		try {
 			console.log('Enviando solicitud OTP para:', correo);
-			const response = await fetch('http://localhost:3000/api/solicitar-otp', {
+			const response = await fetch(`${API_URL}/solicitar-otp`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ correo })
@@ -67,7 +69,7 @@
 
 		loading = true;
 		try {
-			const response = await fetch('http://localhost:3000/api/verificar-otp', {
+			const response = await fetch(`${API_URL}/verificar-otp`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ correo, codigo })
@@ -120,7 +122,7 @@
 		loading = true;
 		try {
 			console.log('📤 Enviando petición al backend...');
-			const response = await fetch('http://localhost:3000/api/restablecer-contrasena', {
+			const response = await fetch(`${API_URL}/restablecer-contrasena`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ correo, token, nueva_contrasena })

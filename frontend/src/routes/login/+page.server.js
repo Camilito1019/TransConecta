@@ -19,16 +19,48 @@ export const actions = {
     const contraseña = data.get('contraseña');
 
     if (!correo || !contraseña) {
-      return { error: 'Correo y contraseña son requeridos' };
+      return { success: false, error: 'Correo y contraseña son requeridos' };
     }
 
     try {
-      const apiUrl = process.env.VITE_API_URL || 'http://localhost:3000/api';
-      const response = await fetch(`${apiUrl}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ correo, contraseña }),
-      });
+      // SSR puede correr:
+      // - Local (Windows): backend suele ser localhost
+      // - Docker: backend suele resolverse como "backend"
+      // Intentamos URLs en orden hasta que una responda.
+      const candidates = [
+        process.env.INTERNAL_API_URL,
+        process.env.VITE_API_URL,
+        'http://localhost:3000/api',
+        'http://backend:3000/api',
+      ].filter(Boolean);
+
+      const uniqueCandidates = [...new Set(candidates)];
+
+      let response;
+      let lastNetworkError;
+
+      for (const baseUrl of uniqueCandidates) {
+        try {
+          response = await fetch(`${baseUrl}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ correo, contraseña }),
+          });
+          lastNetworkError = null;
+          break;
+        } catch (err) {
+          lastNetworkError = err;
+          continue;
+        }
+      }
+
+      if (!response) {
+        const message =
+          lastNetworkError?.cause?.code === 'ENOTFOUND'
+            ? `No se pudo resolver el host del backend (${lastNetworkError?.cause?.hostname}). Configura INTERNAL_API_URL o VITE_API_URL.`
+            : lastNetworkError?.message || 'Error al conectar con el servidor';
+        return { success: false, error: message };
+      }
 
       if (!response.ok) {
         const error = await response.json();
@@ -70,7 +102,7 @@ export const actions = {
         throw error; // Re-throw redirect
       }
       console.error('Login error:', error);
-      return { error: error.message || 'Error al conectar con el servidor' };
+      return { success: false, error: error.message || 'Error al conectar con el servidor' };
     }
   },
 };

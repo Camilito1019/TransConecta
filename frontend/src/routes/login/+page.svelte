@@ -92,7 +92,7 @@
 					console.log('🔍 Usuario:', result.data?.usuario);
 					console.log('🔍 Requiere cambio:', result.data?.usuario?.requiere_cambio_contrasena);
 					
-					if (result.type === 'success' && result.data?.success !== false) {
+					if (result.type === 'success' && result.data?.success === true) {
 						const token = result.data?.token ? String(result.data.token) : null;
 						if (token) {
 							localStorage.setItem('auth_token', token);

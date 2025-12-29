@@ -2,6 +2,7 @@ import express from "express";
 import {
   crearConductor,
   listarConductores,
+  listarConductoresFatigaActiva,
   obtenerConductor,
   actualizarConductor,
   desactivarConductor,
@@ -107,6 +108,18 @@ router.get(
     { modulo: 'registroHoras', accion: 'crear' }
   ]),
   listarConductores
+);
+
+// Conductores con fatiga activa (sin filtro por conductor)
+router.get(
+  "/conductores/fatiga-activa",
+  verifyToken,
+  requiereAlgunoPermiso([
+    { modulo: 'registroHoras', accion: 'ver' },
+    { modulo: 'registroHoras', accion: 'crear' },
+    { modulo: 'conductores', accion: 'ver' }
+  ]),
+  listarConductoresFatigaActiva
 );
 
 /**

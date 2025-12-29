@@ -1,0 +1,1 @@
+// Este archivo contiene declaraciones de tipos para TypeScript, permitiendo la integración de tipos personalizados en la aplicación.

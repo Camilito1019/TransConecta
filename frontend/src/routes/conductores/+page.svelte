@@ -220,7 +220,18 @@
 				</label>
 				<label class="field">
 					<span>Licencia</span>
-					<input type="text" placeholder="LIC-123456" bind:value={formData.licencia_conduccion} />
+					<select bind:value={formData.licencia_conduccion} required>
+						<option value="">Selecciona tipo</option>
+						<option value="A1">A1</option>
+						<option value="A2">A2</option>
+						<option value="A3">A3</option>
+						<option value="B1">B1</option>
+						<option value="B2">B2</option>
+						<option value="B3">B3</option>
+						<option value="C1">C1</option>
+						<option value="C2">C2</option>
+						<option value="C3">C3</option>
+					</select>
 				</label>
 				<label class="field">
 					<span>Estado</span>
@@ -447,8 +458,8 @@
 	.danger { color: var(--tc-danger-text); border-color: var(--tc-danger-border); background: var(--tc-danger-bg); }
 
 	.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
-	.field { display: grid; gap: 6px; font-size: 14px; color: var(--tc-text); }
-	.field input, .field select { padding: 12px 12px; border-radius: 12px; border: 1.5px solid var(--tc-border); background: color-mix(in srgb, var(--tc-surface), var(--tc-bg) 35%); font-size: 14px; transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease; font-family: inherit; }
+	.field { display: grid; gap: 6px; font-size: 14px; color: var(--tc-text); min-width: 0; }
+	.field input, .field select { padding: 12px 12px; border-radius: 12px; border: 1.5px solid var(--tc-border); background: color-mix(in srgb, var(--tc-surface), var(--tc-bg) 35%); font-size: 14px; transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease; font-family: inherit; min-width: 0; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 	.field input:focus, .field select:focus { outline: none; border-color: var(--tc-accent); box-shadow: 0 10px 30px color-mix(in srgb, var(--tc-accent), transparent 85%); background: var(--tc-surface); }
 	.form-actions { grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 4px; }
 

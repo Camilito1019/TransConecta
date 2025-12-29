@@ -184,6 +184,10 @@ export const conductorService = {
     return api.get('/conductores');
   },
 
+  async listarFatigaActiva() {
+    return api.get('/conductores/fatiga-activa');
+  },
+
   async obtener(id_conductor) {
     return api.get(`/conductores/${id_conductor}`);
   },
